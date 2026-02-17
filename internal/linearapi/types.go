@@ -6,6 +6,7 @@ import (
 )
 
 type Issue struct {
+	ID          string
 	Identifier  string
 	Title       string
 	Description string
@@ -30,6 +31,7 @@ type State struct {
 }
 
 type Label struct {
+	ID    string
 	Name  string
 	Color string
 }

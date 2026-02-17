@@ -45,6 +45,7 @@ query IssueByIdentifier($teamKey: String!, $number: Float!) {
     first: 1
   ) {
     nodes {
+      id
       identifier
       title
       description
@@ -59,6 +60,7 @@ query IssueByIdentifier($teamKey: String!, $number: Float!) {
       }
       labels {
         nodes {
+          id
           name
           color
         }
@@ -70,6 +72,31 @@ query IssueByIdentifier($teamKey: String!, $number: Float!) {
         }
       }
     }
+  }
+}
+`
+
+const labelByNameQuery = `
+query LabelByName($teamKey: String!, $labelName: String!) {
+  issueLabels(
+    filter: {
+      team: { key: { eq: $teamKey } }
+      name: { eq: $labelName }
+    }
+    first: 1
+  ) {
+    nodes {
+      id
+      name
+    }
+  }
+}
+`
+
+const addLabelMutation = `
+mutation AddLabel($issueID: String!, $labelID: String!) {
+  issueAddLabel(id: $issueID, labelId: $labelID) {
+    success
   }
 }
 `
@@ -93,6 +120,7 @@ type issuesResponse struct {
 }
 
 type issueJSON struct {
+	ID          string    `json:"id"`
 	Identifier  string    `json:"identifier"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
@@ -107,6 +135,7 @@ type issueJSON struct {
 	} `json:"state"`
 	Labels struct {
 		Nodes []struct {
+			ID    string `json:"id"`
 			Name  string `json:"name"`
 			Color string `json:"color"`
 		} `json:"nodes"`
@@ -132,20 +161,10 @@ func ParseIdentifier(identifier string) (teamKey string, number int, err error) 
 	return parts[0], n, nil
 }
 
-// FetchIssue retrieves an issue by its identifier (e.g. "MIR-42").
-// Returns nil, nil if the issue is not found.
-func (c *Client) FetchIssue(ctx context.Context, identifier string) (*Issue, error) {
-	teamKey, number, err := ParseIdentifier(identifier)
-	if err != nil {
-		return nil, err
-	}
-
+func (c *Client) do(ctx context.Context, query string, variables map[string]any) (json.RawMessage, error) {
 	reqBody := graphQLRequest{
-		Query: issueByIdentifierQuery,
-		Variables: map[string]any{
-			"teamKey": teamKey,
-			"number":  float64(number),
-		},
+		Query:     query,
+		Variables: variables,
 	}
 
 	bodyBytes, err := json.Marshal(reqBody)
@@ -185,8 +204,27 @@ func (c *Client) FetchIssue(ctx context.Context, identifier string) (*Issue, err
 		return nil, fmt.Errorf("linear API error: %s", gqlResp.Errors[0].Message)
 	}
 
+	return gqlResp.Data, nil
+}
+
+// FetchIssue retrieves an issue by its identifier (e.g. "MIR-42").
+// Returns nil, nil if the issue is not found.
+func (c *Client) FetchIssue(ctx context.Context, identifier string) (*Issue, error) {
+	teamKey, number, err := ParseIdentifier(identifier)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, issueByIdentifierQuery, map[string]any{
+		"teamKey": teamKey,
+		"number":  float64(number),
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	var issueResp issuesResponse
-	if err := json.Unmarshal(gqlResp.Data, &issueResp); err != nil {
+	if err := json.Unmarshal(data, &issueResp); err != nil {
 		return nil, fmt.Errorf("decode issue data: %w", err)
 	}
 
@@ -197,16 +235,55 @@ func (c *Client) FetchIssue(ctx context.Context, identifier string) (*Issue, err
 	return issueResp.Issues.Nodes[0].toIssue(), nil
 }
 
+// FetchLabelByName returns the UUID of a label by name within a team.
+// Returns "", nil if the label is not found.
+func (c *Client) FetchLabelByName(ctx context.Context, teamKey, name string) (string, error) {
+	data, err := c.do(ctx, labelByNameQuery, map[string]any{
+		"teamKey":   teamKey,
+		"labelName": name,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	var resp struct {
+		IssueLabels struct {
+			Nodes []struct {
+				ID string `json:"id"`
+			} `json:"nodes"`
+		} `json:"issueLabels"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return "", fmt.Errorf("decode label data: %w", err)
+	}
+
+	if len(resp.IssueLabels.Nodes) == 0 {
+		return "", nil
+	}
+
+	return resp.IssueLabels.Nodes[0].ID, nil
+}
+
+// AddLabel appends a label to an issue.
+func (c *Client) AddLabel(ctx context.Context, issueID, labelID string) error {
+	_, err := c.do(ctx, addLabelMutation, map[string]any{
+		"issueID": issueID,
+		"labelID": labelID,
+	})
+	return err
+}
+
 func (j *issueJSON) toIssue() *Issue {
 	labels := make([]Label, len(j.Labels.Nodes))
 	for i, n := range j.Labels.Nodes {
-		labels[i] = Label{Name: n.Name, Color: n.Color}
+		labels[i] = Label{ID: n.ID, Name: n.Name, Color: n.Color}
 	}
 	attachments := make([]Attachment, len(j.Attachments.Nodes))
 	for i, n := range j.Attachments.Nodes {
 		attachments[i] = Attachment{URL: n.URL, Title: n.Title}
 	}
 	return &Issue{
+		ID:          j.ID,
 		Identifier:  j.Identifier,
 		Title:       j.Title,
 		Description: j.Description,

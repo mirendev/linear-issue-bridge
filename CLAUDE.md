@@ -46,6 +46,7 @@ miren deploy -s LINEAR_API_KEY=<key> -e LINEAR_TEAM_KEY=MIR
 | `PORT` | Listen port (set automatically by Miren) |
 | `LINEAR_API_KEY` | Linear API key for GraphQL queries |
 | `LINEAR_TEAM_KEY` | Issue prefix, e.g. `MIR` |
+| `GITHUB_WEBHOOK_SECRET` | Enables `POST /webhook/github`; GitHub HMAC-SHA256 secret |
 
 ## Code Style
 

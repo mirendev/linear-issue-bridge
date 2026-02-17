@@ -48,6 +48,7 @@ func TestFetchIssue(t *testing.T) {
 				"issues": map[string]any{
 					"nodes": []map[string]any{
 						{
+							"id":          "issue-uuid-1",
 							"identifier":  "MIR-42",
 							"title":       "Test Issue",
 							"description": "A test description",
@@ -62,8 +63,8 @@ func TestFetchIssue(t *testing.T) {
 							},
 							"labels": map[string]any{
 								"nodes": []map[string]any{
-									{"name": "public", "color": "#5e6ad2"},
-									{"name": "bug", "color": "#eb5757"},
+									{"id": "label-uuid-1", "name": "public", "color": "#5e6ad2"},
+									{"id": "label-uuid-2", "name": "bug", "color": "#eb5757"},
 								},
 							},
 							"attachments": map[string]any{
@@ -93,6 +94,9 @@ func TestFetchIssue(t *testing.T) {
 	if issue == nil {
 		t.Fatal("expected issue, got nil")
 	}
+	if issue.ID != "issue-uuid-1" {
+		t.Errorf("ID = %q, want %q", issue.ID, "issue-uuid-1")
+	}
 	if issue.Identifier != "MIR-42" {
 		t.Errorf("Identifier = %q, want %q", issue.Identifier, "MIR-42")
 	}
@@ -104,6 +108,9 @@ func TestFetchIssue(t *testing.T) {
 	}
 	if len(issue.Labels) != 2 {
 		t.Fatalf("Labels count = %d, want 2", len(issue.Labels))
+	}
+	if issue.Labels[0].ID != "label-uuid-1" {
+		t.Errorf("Labels[0].ID = %q, want %q", issue.Labels[0].ID, "label-uuid-1")
 	}
 	if !issue.HasLabel("public") {
 		t.Error("expected issue to have 'public' label")
@@ -163,5 +170,90 @@ func TestFetchIssueGraphQLError(t *testing.T) {
 	_, err := client.FetchIssue(context.Background(), "MIR-42")
 	if err == nil {
 		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestFetchLabelByName(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]any{
+			"data": map[string]any{
+				"issueLabels": map[string]any{
+					"nodes": []map[string]any{
+						{"id": "label-uuid-public", "name": "public"},
+					},
+				},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	client := NewClient("test-key")
+	client.SetEndpoint(srv.URL)
+
+	id, err := client.FetchLabelByName(context.Background(), "MIR", "public")
+	if err != nil {
+		t.Fatalf("FetchLabelByName: %v", err)
+	}
+	if id != "label-uuid-public" {
+		t.Errorf("ID = %q, want %q", id, "label-uuid-public")
+	}
+}
+
+func TestFetchLabelByNameNotFound(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]any{
+			"data": map[string]any{
+				"issueLabels": map[string]any{
+					"nodes": []any{},
+				},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	client := NewClient("test-key")
+	client.SetEndpoint(srv.URL)
+
+	id, err := client.FetchLabelByName(context.Background(), "MIR", "nonexistent")
+	if err != nil {
+		t.Fatalf("FetchLabelByName: %v", err)
+	}
+	if id != "" {
+		t.Errorf("expected empty ID, got %q", id)
+	}
+}
+
+func TestAddLabel(t *testing.T) {
+	var gotQuery string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req graphQLRequest
+		json.NewDecoder(r.Body).Decode(&req)
+		gotQuery = req.Query
+
+		resp := map[string]any{
+			"data": map[string]any{
+				"issueAddLabel": map[string]any{
+					"success": true,
+				},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	client := NewClient("test-key")
+	client.SetEndpoint(srv.URL)
+
+	err := client.AddLabel(context.Background(), "issue-uuid-1", "label-uuid-1")
+	if err != nil {
+		t.Fatalf("AddLabel: %v", err)
+	}
+	if gotQuery == "" {
+		t.Fatal("expected a GraphQL query to be sent")
 	}
 }

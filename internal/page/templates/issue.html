@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Issue.Identifier}}: {{.Issue.Title}} — Miren</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <a href="/" class="logo">Miren</a>
+  </header>
+  <main>
+    <article class="issue">
+      <div class="issue-header">
+        <span class="identifier">{{.Issue.Identifier}}</span>
+        <div class="issue-meta">
+          <span class="status" style="color: {{.Issue.State.Color}}">{{.Issue.State.Name}}</span>
+          {{range .Issue.Labels}}
+            <span class="label" style="background-color: {{.Color}}20; color: {{.Color}}; border-color: {{.Color}}40">{{.Name}}</span>
+          {{end}}
+        </div>
+      </div>
+      <h1>{{.Issue.Title}}</h1>
+      {{if .DescriptionHTML}}
+      <div class="description">
+        {{.DescriptionHTML}}
+      </div>
+      {{end}}
+    </article>
+  </main>
+  <footer>
+    <p>Powered by <a href="https://miren.dev">Miren</a></p>
+  </footer>
+</body>
+</html>

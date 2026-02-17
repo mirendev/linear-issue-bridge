@@ -1,0 +1,17 @@
+# Binary
+linear-issue-bridge
+/bin/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Nix
+result
+
+# OS
+.DS_Store
+
+# Environment
+.env

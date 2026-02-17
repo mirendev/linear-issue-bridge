@@ -72,6 +72,45 @@ func TestPublicLabeler_AlreadyLabeled(t *testing.T) {
 	}
 }
 
+func TestPublicLabeler_NonpublicLabel(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]any{
+			"data": map[string]any{
+				"issues": map[string]any{
+					"nodes": []map[string]any{
+						{
+							"id":         "issue-uuid-1",
+							"identifier": "MIR-42",
+							"title":      "Secret stuff",
+							"labels": map[string]any{
+								"nodes": []map[string]any{
+									{"id": "label-uuid-1", "name": "nonpublic", "color": "#e55"},
+								},
+							},
+							"state":       map[string]any{"name": "Todo", "color": "#fff", "type": "unstarted"},
+							"attachments": map[string]any{"nodes": []any{}},
+							"createdAt":   "2025-01-15T10:00:00.000Z",
+							"updatedAt":   "2025-01-15T10:00:00.000Z",
+						},
+					},
+				},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	client := NewClient("test-key")
+	client.SetEndpoint(srv.URL)
+	labeler := NewPublicLabeler(client, "MIR")
+
+	err := labeler.EnsurePublicLabel(context.Background(), "MIR-42")
+	if err != nil {
+		t.Fatalf("expected no error for nonpublic issue, got: %v", err)
+	}
+}
+
 func TestPublicLabeler_AppliesLabel(t *testing.T) {
 	callCount := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

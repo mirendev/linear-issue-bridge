@@ -77,10 +77,9 @@ query IssueByIdentifier($teamKey: String!, $number: Float!) {
 `
 
 const labelByNameQuery = `
-query LabelByName($teamKey: String!, $labelName: String!) {
+query LabelByName($labelName: String!) {
   issueLabels(
     filter: {
-      team: { key: { eq: $teamKey } }
       name: { eq: $labelName }
     }
     first: 1
@@ -237,9 +236,8 @@ func (c *Client) FetchIssue(ctx context.Context, identifier string) (*Issue, err
 
 // FetchLabelByName returns the UUID of a label by name within a team.
 // Returns "", nil if the label is not found.
-func (c *Client) FetchLabelByName(ctx context.Context, teamKey, name string) (string, error) {
+func (c *Client) FetchLabelByName(ctx context.Context, _, name string) (string, error) {
 	data, err := c.do(ctx, labelByNameQuery, map[string]any{
-		"teamKey":   teamKey,
 		"labelName": name,
 	})
 	if err != nil {

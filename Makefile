@@ -1,4 +1,4 @@
-.PHONY: build test lint lint-fix clean dev
+.PHONY: build test lint lint-fix clean dev backfill
 
 build:
 	go build -o linear-issue-bridge .
@@ -14,6 +14,9 @@ lint-fix:
 
 dev:
 	go run .
+
+backfill:
+	go run ./cmd/backfill $(ARGS)
 
 clean:
 	rm -f linear-issue-bridge

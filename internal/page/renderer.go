@@ -56,6 +56,10 @@ func (r *Renderer) StaticHandler() http.Handler {
 	return http.FileServerFS(sub)
 }
 
+func (r *Renderer) RenderIndexPage(w io.Writer) error {
+	return r.templates.ExecuteTemplate(w, "index.html", nil)
+}
+
 type issuePageData struct {
 	Issue           *linearapi.Issue
 	DescriptionHTML template.HTML

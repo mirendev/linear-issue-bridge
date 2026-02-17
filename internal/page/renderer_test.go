@@ -11,6 +11,35 @@ import (
 	"miren.dev/linear-issue-bridge/internal/linearapi"
 )
 
+func TestRenderIndexPage(t *testing.T) {
+	r, err := NewRenderer("MIR")
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	var buf bytes.Buffer
+	if err := r.RenderIndexPage(&buf); err != nil {
+		t.Fatalf("RenderIndexPage: %v", err)
+	}
+
+	html := buf.String()
+
+	checks := []string{
+		"Public Issues",
+		"Linear",
+		"develops in the open",
+		"github.com/mirendev/runtime",
+		"github.com/mirendev/linear-issue-bridge",
+		"miren.dev",
+	}
+
+	for _, check := range checks {
+		if !strings.Contains(html, check) {
+			t.Errorf("output missing %q", check)
+		}
+	}
+}
+
 func TestRenderIssuePage(t *testing.T) {
 	r, err := NewRenderer("MIR")
 	if err != nil {

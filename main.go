@@ -58,6 +58,12 @@ func run() error {
 
 	mux.Handle("GET /static/", http.StripPrefix("/static/", renderer.StaticHandler()))
 
+	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		if err := renderer.RenderIndexPage(w); err != nil {
+			slog.Error("render index", "error", err)
+		}
+	})
+
 	mux.HandleFunc("GET /{identifier}", func(w http.ResponseWriter, r *http.Request) {
 		identifier := strings.ToUpper(r.PathValue("identifier"))
 

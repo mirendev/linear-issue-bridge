@@ -153,6 +153,71 @@ main {
   padding: 2.5rem 1.5rem 3rem;
 }
 
+/* ── Index Page ──────────────────────────────────────── */
+
+.index {
+  padding: 3rem 0;
+}
+
+.index h1 {
+  font-family: var(--font-primary);
+  font-size: 1.875rem;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  margin-bottom: 1.25rem;
+}
+
+.index-intro {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+  margin-bottom: 1rem;
+}
+
+.index-intro a {
+  color: var(--color-accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.index-intro a:hover {
+  border-bottom-color: var(--color-accent);
+}
+
+.index-links {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.index-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--color-accent);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.index-link:hover {
+  background: var(--color-accent-light);
+  border-color: var(--color-accent);
+}
+
+.index-link svg {
+  flex-shrink: 0;
+}
+
 /* ── Issue Page ──────────────────────────────────────── */
 
 .issue-identifier {

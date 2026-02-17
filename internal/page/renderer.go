@@ -5,6 +5,7 @@ import (
 	"embed"
 	"html/template"
 	"io"
+	"io/fs"
 	"net/http"
 
 	"github.com/yuin/goldmark"
@@ -51,7 +52,8 @@ func NewRenderer(teamKey string) (*Renderer, error) {
 }
 
 func (r *Renderer) StaticHandler() http.Handler {
-	return http.FileServerFS(staticFS)
+	sub, _ := fs.Sub(staticFS, "static")
+	return http.FileServerFS(sub)
 }
 
 type issuePageData struct {

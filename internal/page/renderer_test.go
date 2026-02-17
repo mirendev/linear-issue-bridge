@@ -2,6 +2,8 @@ package page
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -84,6 +86,32 @@ func TestRenderNotFound(t *testing.T) {
 	html := buf.String()
 	if !strings.Contains(html, "not found") {
 		t.Error("not found page missing expected text")
+	}
+}
+
+func TestStaticHandlerContentType(t *testing.T) {
+	r, err := NewRenderer("MIR")
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	handler := http.StripPrefix("/static/", r.StaticHandler())
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/static/style.css")
+	if err != nil {
+		t.Fatalf("GET /static/style.css: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	ct := resp.Header.Get("Content-Type")
+	if !strings.HasPrefix(ct, "text/css") {
+		t.Errorf("expected Content-Type text/css, got %q", ct)
 	}
 }
 

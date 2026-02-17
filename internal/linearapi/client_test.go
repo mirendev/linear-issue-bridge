@@ -66,6 +66,12 @@ func TestFetchIssue(t *testing.T) {
 									{"name": "bug", "color": "#eb5757"},
 								},
 							},
+							"attachments": map[string]any{
+								"nodes": []map[string]any{
+									{"url": "https://github.com/mirendev/linear-issue-bridge/pull/1", "title": "feat: add PR links"},
+									{"url": "https://linear.app/some-other-link", "title": "Other"},
+								},
+							},
 						},
 					},
 				},
@@ -101,6 +107,16 @@ func TestFetchIssue(t *testing.T) {
 	}
 	if !issue.HasLabel("public") {
 		t.Error("expected issue to have 'public' label")
+	}
+	if len(issue.Attachments) != 2 {
+		t.Fatalf("Attachments count = %d, want 2", len(issue.Attachments))
+	}
+	prs := issue.GitHubPRs()
+	if len(prs) != 1 {
+		t.Fatalf("GitHubPRs count = %d, want 1", len(prs))
+	}
+	if prs[0].Title != "feat: add PR links" {
+		t.Errorf("PR title = %q, want %q", prs[0].Title, "feat: add PR links")
 	}
 }
 

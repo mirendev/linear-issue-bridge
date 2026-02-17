@@ -59,6 +59,7 @@ func (r *Renderer) StaticHandler() http.Handler {
 type issuePageData struct {
 	Issue           *linearapi.Issue
 	DescriptionHTML template.HTML
+	GitHubPRs       []linearapi.Attachment
 	TeamKey         string
 }
 
@@ -67,6 +68,7 @@ func (r *Renderer) RenderIssuePage(w io.Writer, issue *linearapi.Issue) error {
 	return r.templates.ExecuteTemplate(w, "issue.html", issuePageData{
 		Issue:           issue,
 		DescriptionHTML: descHTML,
+		GitHubPRs:       issue.GitHubPRs(),
 		TeamKey:         r.teamKey,
 	})
 }

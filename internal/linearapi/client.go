@@ -63,6 +63,12 @@ query IssueByIdentifier($teamKey: String!, $number: Float!) {
           color
         }
       }
+      attachments {
+        nodes {
+          url
+          title
+        }
+      }
     }
   }
 }
@@ -105,6 +111,12 @@ type issueJSON struct {
 			Color string `json:"color"`
 		} `json:"nodes"`
 	} `json:"labels"`
+	Attachments struct {
+		Nodes []struct {
+			URL   string `json:"url"`
+			Title string `json:"title"`
+		} `json:"nodes"`
+	} `json:"attachments"`
 }
 
 // ParseIdentifier splits "MIR-42" into ("MIR", 42).
@@ -190,6 +202,10 @@ func (j *issueJSON) toIssue() *Issue {
 	for i, n := range j.Labels.Nodes {
 		labels[i] = Label{Name: n.Name, Color: n.Color}
 	}
+	attachments := make([]Attachment, len(j.Attachments.Nodes))
+	for i, n := range j.Attachments.Nodes {
+		attachments[i] = Attachment{URL: n.URL, Title: n.Title}
+	}
 	return &Issue{
 		Identifier:  j.Identifier,
 		Title:       j.Title,
@@ -197,6 +213,7 @@ func (j *issueJSON) toIssue() *Issue {
 		State:       State{Name: j.State.Name, Color: j.State.Color, Type: j.State.Type},
 		Priority:    j.Priority,
 		Labels:      labels,
+		Attachments: attachments,
 		URL:         j.URL,
 		CreatedAt:   j.CreatedAt,
 		UpdatedAt:   j.UpdatedAt,

@@ -219,6 +219,35 @@ main {
   border: 1px solid;
 }
 
+/* ── GitHub PRs ──────────────────────────────────────── */
+
+.github-prs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+  font-size: 0.875rem;
+}
+
+.github-prs-icon {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.github-pr-link {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--color-accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.github-pr-link:hover {
+  border-bottom-color: var(--color-accent);
+}
+
 /* ── Description / Markdown ─────────────────────────── */
 
 .description {

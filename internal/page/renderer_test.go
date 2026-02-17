@@ -25,6 +25,9 @@ func TestRenderIssuePage(t *testing.T) {
 		Labels: []linearapi.Label{
 			{Name: "public", Color: "#5e6ad2"},
 		},
+		Attachments: []linearapi.Attachment{
+			{URL: "https://github.com/mirendev/linear-issue-bridge/pull/1", Title: "feat: add PR links"},
+		},
 		URL:       "https://linear.app/miren/issue/MIR-42",
 		CreatedAt: time.Date(2025, 1, 15, 10, 0, 0, 0, time.UTC),
 		UpdatedAt: time.Date(2025, 1, 15, 12, 0, 0, 0, time.UTC),
@@ -43,6 +46,9 @@ func TestRenderIssuePage(t *testing.T) {
 		"<strong>bold</strong>",
 		"In Progress",
 		"public",
+		"github.com/mirendev/linear-issue-bridge/pull/1",
+		"feat: add PR links",
+		"github-pr-link",
 	}
 
 	for _, check := range checks {

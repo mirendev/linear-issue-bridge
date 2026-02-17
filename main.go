@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"regexp"
@@ -101,7 +102,10 @@ func run() error {
 		}
 	})
 
-	addr := ":" + port
-	slog.Info("starting server", "addr", addr, "team_key", teamKey)
-	return http.ListenAndServe(addr, mux)
+	ln, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		return fmt.Errorf("listen: %w", err)
+	}
+	slog.Info("starting server", "addr", "http://"+ln.Addr().String(), "team_key", teamKey)
+	return http.Serve(ln, mux)
 }

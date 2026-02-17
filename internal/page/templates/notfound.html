@@ -1,23 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {{template "head"}}
   <title>Not Found — Miren</title>
-  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <header>
-    <a href="/" class="logo">Miren</a>
-  </header>
+  {{template "header"}}
   <main>
     <div class="not-found">
       <h1>Issue not found</h1>
       <p>The issue you're looking for doesn't exist.</p>
     </div>
   </main>
-  <footer>
-    <p>Powered by <a href="https://miren.dev">Miren</a></p>
-  </footer>
+  {{template "footer"}}
 </body>
 </html>

@@ -35,9 +35,10 @@ type Renderer struct {
 	teamKey   string
 }
 
-func NewRenderer(teamKey string) (*Renderer, error) {
+func NewRenderer(teamKey string, fathomSiteID string) (*Renderer, error) {
 	funcMap := template.FuncMap{
 		"markdown": renderMarkdown,
+		"fathomSiteID": func() string { return fathomSiteID },
 	}
 
 	tmpl, err := template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/*.html")

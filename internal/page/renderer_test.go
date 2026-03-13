@@ -12,7 +12,7 @@ import (
 )
 
 func TestRenderIndexPage(t *testing.T) {
-	r, err := NewRenderer("MIR")
+	r, err := NewRenderer("MIR", "")
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestRenderIndexPage(t *testing.T) {
 }
 
 func TestRenderIssuePage(t *testing.T) {
-	r, err := NewRenderer("MIR")
+	r, err := NewRenderer("MIR", "")
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestRenderIssuePage(t *testing.T) {
 }
 
 func TestRenderStubPage(t *testing.T) {
-	r, err := NewRenderer("MIR")
+	r, err := NewRenderer("MIR", "")
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestRenderStubPage(t *testing.T) {
 }
 
 func TestRenderNotFound(t *testing.T) {
-	r, err := NewRenderer("MIR")
+	r, err := NewRenderer("MIR", "")
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestRenderNotFound(t *testing.T) {
 }
 
 func TestStaticHandlerContentType(t *testing.T) {
-	r, err := NewRenderer("MIR")
+	r, err := NewRenderer("MIR", "")
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}

@@ -43,7 +43,9 @@ func run() error {
 	client := linearapi.NewClient(apiKey)
 	issueCache := cache.New(client, cache.DefaultTTL)
 
-	renderer, err := page.NewRenderer(teamKey)
+	fathomSiteID := os.Getenv("FATHOM_SITE_ID")
+
+	renderer, err := page.NewRenderer(teamKey, fathomSiteID)
 	if err != nil {
 		return fmt.Errorf("initialize renderer: %w", err)
 	}

@@ -47,6 +47,7 @@ miren deploy -s LINEAR_API_KEY=<key> -e LINEAR_TEAM_KEY=MIR
 | `LINEAR_API_KEY` | Linear API key for GraphQL queries |
 | `LINEAR_TEAM_KEY` | Issue prefix, e.g. `MIR` |
 | `GITHUB_WEBHOOK_SECRET` | Enables `POST /webhook/github`; GitHub HMAC-SHA256 secret |
+| `FATHOM_SITE_ID` | Fathom Analytics site ID; omit to disable tracking |
 
 ## Code Style
 

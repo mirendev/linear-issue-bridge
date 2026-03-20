@@ -36,8 +36,10 @@ Then visit `http://localhost:8080/MIR-42`
 ## Deployment
 
 ```bash
-miren deploy -s LINEAR_API_KEY=<key> -e LINEAR_TEAM_KEY=MIR
+miren deploy
 ```
+
+Miren remembers env vars and secrets from previous deploys, so you only need to pass `-s` or `-e` flags when setting them for the first time or changing them.
 
 ## Configuration
 

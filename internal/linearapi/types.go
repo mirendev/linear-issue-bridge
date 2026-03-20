@@ -14,9 +14,15 @@ type Issue struct {
 	Priority    int
 	Labels      []Label
 	Attachments []Attachment
-	URL         string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	URL       string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Creator   Creator
+}
+
+type Creator struct {
+	DisplayName string
+	AvatarURL   string
 }
 
 type Attachment struct {

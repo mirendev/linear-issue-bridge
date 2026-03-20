@@ -53,6 +53,10 @@ query IssueByIdentifier($teamKey: String!, $number: Float!) {
       priority
       createdAt
       updatedAt
+      creator {
+        displayName
+        avatarUrl
+      }
       state {
         name
         color
@@ -127,7 +131,11 @@ type issueJSON struct {
 	Priority    int       `json:"priority"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
-	State       struct {
+	Creator *struct {
+		DisplayName string `json:"displayName"`
+		AvatarURL   string `json:"avatarUrl"`
+	} `json:"creator"`
+	State struct {
 		Name  string `json:"name"`
 		Color string `json:"color"`
 		Type  string `json:"type"`
@@ -280,6 +288,10 @@ func (j *issueJSON) toIssue() *Issue {
 	for i, n := range j.Attachments.Nodes {
 		attachments[i] = Attachment{URL: n.URL, Title: n.Title}
 	}
+	var creator Creator
+	if j.Creator != nil {
+		creator = Creator{DisplayName: j.Creator.DisplayName, AvatarURL: j.Creator.AvatarURL}
+	}
 	return &Issue{
 		ID:          j.ID,
 		Identifier:  j.Identifier,
@@ -292,5 +304,6 @@ func (j *issueJSON) toIssue() *Issue {
 		URL:         j.URL,
 		CreatedAt:   j.CreatedAt,
 		UpdatedAt:   j.UpdatedAt,
+		Creator:     creator,
 	}
 }

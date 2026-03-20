@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"time"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
@@ -37,8 +38,11 @@ type Renderer struct {
 
 func NewRenderer(teamKey string, fathomSiteID string) (*Renderer, error) {
 	funcMap := template.FuncMap{
-		"markdown": renderMarkdown,
+		"markdown":     renderMarkdown,
 		"fathomSiteID": func() string { return fathomSiteID },
+		"formatDate": func(t time.Time) string {
+			return t.Format("Jan 2, 2006")
+		},
 	}
 
 	tmpl, err := template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/*.html")

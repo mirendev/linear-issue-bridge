@@ -21,6 +21,10 @@ func (m *mockFetcher) FetchIssue(_ context.Context, _ string) (*linearapi.Issue,
 	return m.issue, m.err
 }
 
+func (m *mockFetcher) FetchPublicIssues(_ context.Context, _ string) ([]*linearapi.Issue, error) {
+	return nil, nil
+}
+
 func TestCacheHit(t *testing.T) {
 	issue := &linearapi.Issue{Identifier: "MIR-1", Title: "Cached"}
 	fetcher := &mockFetcher{issue: issue}

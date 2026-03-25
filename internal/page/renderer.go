@@ -94,6 +94,28 @@ func (r *Renderer) RenderStubPage(w io.Writer, identifier string) error {
 	})
 }
 
+type issuesPageData struct {
+	Issues   []*linearapi.Issue
+	Statuses []string
+	TeamKey  string
+}
+
+func (r *Renderer) RenderIssuesPage(w io.Writer, issues []*linearapi.Issue) error {
+	seen := make(map[string]bool)
+	var statuses []string
+	for _, issue := range issues {
+		if !seen[issue.State.Name] {
+			seen[issue.State.Name] = true
+			statuses = append(statuses, issue.State.Name)
+		}
+	}
+	return r.templates.ExecuteTemplate(w, "issues.html", issuesPageData{
+		Issues:   issues,
+		Statuses: statuses,
+		TeamKey:  r.teamKey,
+	})
+}
+
 func (r *Renderer) RenderNotFound(w io.Writer) error {
 	return r.templates.ExecuteTemplate(w, "notfound.html", nil)
 }

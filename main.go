@@ -67,6 +67,22 @@ func run() error {
 		}
 	})
 
+	mux.HandleFunc("GET /issues", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+
+		issues, err := issueCache.GetPublicIssues(ctx, teamKey)
+		if err != nil {
+			slog.Error("fetch public issues", "error", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		if err := renderer.RenderIssuesPage(w, issues); err != nil {
+			slog.Error("render issues", "error", err)
+		}
+	})
+
 	mux.HandleFunc("GET /{identifier}", func(w http.ResponseWriter, r *http.Request) {
 		identifier := strings.ToUpper(r.PathValue("identifier"))
 

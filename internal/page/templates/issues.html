@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {{template "head"}}
+  <title>Open Issues — Miren</title>
+</head>
+<body class="page-issues">
+  {{template "header"}}
+  <main>
+    <div class="issues-list">
+      <h1>Open Issues</h1>
+      <p class="issues-count">{{len .Issues}} open public {{if eq (len .Issues) 1}}issue{{else}}issues{{end}}</p>
+      {{if .Issues}}
+        <div class="issues-filters">
+          <button class="issues-filter active" data-filter="all">All</button>
+          {{range .Statuses}}
+            <button class="issues-filter" data-filter="{{.}}">{{.}}</button>
+          {{end}}
+        </div>
+        <ul class="issues">
+          {{range .Issues}}
+            <li class="issues-item" data-status="{{.State.Name}}">
+              <a href="/{{.Identifier}}" class="issues-item-link">
+                <div class="issues-item-header">
+                  <span class="issues-item-id">{{.Identifier}}</span>
+                  <span class="status" style="color: {{.State.Color}}; background: {{.State.Color}}1a;">{{.State.Name}}</span>
+                </div>
+                <span class="issues-item-title">{{.Title}}</span>
+                <time class="issues-item-date" datetime="{{.UpdatedAt.Format "2006-01-02"}}">Updated {{formatDate .UpdatedAt}}</time>
+              </a>
+            </li>
+          {{end}}
+        </ul>
+        <p class="issues-empty" style="display: none;">No issues match this filter.</p>
+        <script>
+          document.querySelectorAll('.issues-filter').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              document.querySelectorAll('.issues-filter').forEach(function(b) { b.classList.remove('active'); });
+              btn.classList.add('active');
+              var filter = btn.getAttribute('data-filter');
+              var items = document.querySelectorAll('.issues-item');
+              var visible = 0;
+              items.forEach(function(item) {
+                if (filter === 'all' || item.getAttribute('data-status') === filter) {
+                  item.style.display = '';
+                  visible++;
+                } else {
+                  item.style.display = 'none';
+                }
+              });
+              document.querySelector('.issues-empty').style.display = visible === 0 ? '' : 'none';
+            });
+          });
+        </script>
+      {{else}}
+        <p class="issues-empty">No open public issues right now.</p>
+      {{end}}
+    </div>
+  </main>
+  {{template "footer"}}
+</body>
+</html>

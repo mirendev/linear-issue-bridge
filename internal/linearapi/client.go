@@ -96,6 +96,47 @@ query LabelByName($labelName: String!) {
 }
 `
 
+const publicIssuesQuery = `
+query PublicIssues($teamKey: String!, $labelName: String!, $cursor: String) {
+  issues(
+    filter: {
+      team: { key: { eq: $teamKey } }
+      labels: { some: { name: { eq: $labelName } } }
+      state: { type: { nin: ["completed", "cancelled"] } }
+    }
+    first: 50
+    after: $cursor
+    orderBy: updatedAt
+  ) {
+    nodes {
+      id
+      identifier
+      title
+      url
+      priority
+      createdAt
+      updatedAt
+      state {
+        name
+        color
+        type
+      }
+      labels {
+        nodes {
+          id
+          name
+          color
+        }
+      }
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+`
+
 const addLabelMutation = `
 mutation AddLabel($issueID: String!, $labelID: String!) {
   issueAddLabel(id: $issueID, labelId: $labelID) {
@@ -277,6 +318,61 @@ func (c *Client) AddLabel(ctx context.Context, issueID, labelID string) error {
 		"labelID": labelID,
 	})
 	return err
+}
+
+// FetchPublicIssues retrieves all open issues with the "public" label for a team.
+func (c *Client) FetchPublicIssues(ctx context.Context, teamKey string) ([]*Issue, error) {
+	var all []*Issue
+	var cursor *string
+
+	for {
+		vars := map[string]any{
+			"teamKey":   teamKey,
+			"labelName": "public",
+		}
+		if cursor != nil {
+			vars["cursor"] = *cursor
+		}
+
+		data, err := c.do(ctx, publicIssuesQuery, vars)
+		if err != nil {
+			return nil, err
+		}
+
+		var resp struct {
+			Issues struct {
+				Nodes    []issueJSON `json:"nodes"`
+				PageInfo struct {
+					HasNextPage bool   `json:"hasNextPage"`
+					EndCursor   string `json:"endCursor"`
+				} `json:"pageInfo"`
+			} `json:"issues"`
+		}
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return nil, fmt.Errorf("decode public issues: %w", err)
+		}
+
+		for i := range resp.Issues.Nodes {
+			all = append(all, resp.Issues.Nodes[i].toIssue())
+		}
+
+		if !resp.Issues.PageInfo.HasNextPage {
+			break
+		}
+		cursor = &resp.Issues.PageInfo.EndCursor
+	}
+
+	// Filter out issues that slipped through the GraphQL filter
+	open := make([]*Issue, 0, len(all))
+	for _, issue := range all {
+		if issue.IsOpen() {
+			open = append(open, issue)
+		}
+	}
+
+	SortByProgress(open)
+
+	return open, nil
 }
 
 func (j *issueJSON) toIssue() *Issue {

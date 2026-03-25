@@ -2,6 +2,8 @@ package linearapi
 
 import (
 	"regexp"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -40,6 +42,43 @@ type Label struct {
 	ID    string
 	Name  string
 	Color string
+}
+
+var stateOrder = map[string]int{
+	"in review":   0,
+	"in progress": 1,
+	"todo":        2,
+	"triage":      3,
+	"backlog":     4,
+}
+
+func (i *Issue) stateRank() int {
+	if rank, ok := stateOrder[strings.ToLower(i.State.Name)]; ok {
+		return rank
+	}
+	return 3 // default to triage-level
+}
+
+func SortByProgress(issues []*Issue) {
+	sort.SliceStable(issues, func(i, j int) bool {
+		ri, rj := issues[i].stateRank(), issues[j].stateRank()
+		if ri != rj {
+			return ri < rj
+		}
+		return issues[i].UpdatedAt.After(issues[j].UpdatedAt)
+	})
+}
+
+func (i *Issue) IsOpen() bool {
+	switch i.State.Type {
+	case "completed", "cancelled":
+		return false
+	}
+	switch i.State.Name {
+	case "Canceled", "Cancelled", "Duplicate", "Done":
+		return false
+	}
+	return true
 }
 
 func (i *Issue) HasLabel(name string) bool {

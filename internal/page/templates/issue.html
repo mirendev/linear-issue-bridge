@@ -11,7 +11,7 @@
       <span class="issue-identifier">{{.Issue.Identifier}}</span>
       <h1>{{.Issue.Title}}</h1>
       <div class="issue-meta">
-        <span class="status" style="color: {{.Issue.State.Color}}; background-color: {{.Issue.State.Color}}15">{{.Issue.State.Name}}</span>
+        <span class="status" style="color: {{.Issue.State.DisplayColor}}; background-color: {{.Issue.State.DisplayColor}}15">{{.Issue.State.DisplayName}}</span>
         {{range .Issue.Labels}}
           <span class="label" style="background-color: {{.Color}}12; color: {{.Color}}; border-color: {{.Color}}30">{{.Name}}</span>
         {{end}}

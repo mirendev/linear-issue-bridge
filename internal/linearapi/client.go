@@ -137,6 +137,48 @@ query PublicIssues($teamKey: String!, $labelName: String!, $cursor: String) {
 }
 `
 
+const recentlyDonePublicIssuesQuery = `
+query RecentlyDonePublicIssues($teamKey: String!, $labelName: String!, $since: DateTimeOrDuration!, $cursor: String) {
+  issues(
+    filter: {
+      team: { key: { eq: $teamKey } }
+      labels: { some: { name: { eq: $labelName } } }
+      state: { type: { in: ["completed"] } }
+      completedAt: { gte: $since }
+    }
+    first: 50
+    after: $cursor
+    orderBy: updatedAt
+  ) {
+    nodes {
+      id
+      identifier
+      title
+      url
+      priority
+      createdAt
+      updatedAt
+      state {
+        name
+        color
+        type
+      }
+      labels {
+        nodes {
+          id
+          name
+          color
+        }
+      }
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+`
+
 const addLabelMutation = `
 mutation AddLabel($issueID: String!, $labelID: String!) {
   issueAddLabel(id: $issueID, labelId: $labelID) {
@@ -320,7 +362,8 @@ func (c *Client) AddLabel(ctx context.Context, issueID, labelID string) error {
 	return err
 }
 
-// FetchPublicIssues retrieves all open issues with the "public" label for a team.
+// FetchPublicIssues retrieves all open issues and recently completed issues
+// (last 90 days) with the "public" label for a team.
 func (c *Client) FetchPublicIssues(ctx context.Context, teamKey string) ([]*Issue, error) {
 	var all []*Issue
 	var cursor *string
@@ -370,9 +413,62 @@ func (c *Client) FetchPublicIssues(ctx context.Context, teamKey string) ([]*Issu
 		}
 	}
 
-	SortByProgress(open)
+	// Fetch recently completed issues (last 90 days)
+	done, err := c.fetchRecentlyDonePublicIssues(ctx, teamKey)
+	if err != nil {
+		return nil, err
+	}
 
-	return open, nil
+	all = append(open, done...)
+	SortByProgress(all)
+
+	return all, nil
+}
+
+func (c *Client) fetchRecentlyDonePublicIssues(ctx context.Context, teamKey string) ([]*Issue, error) {
+	var all []*Issue
+	var cursor *string
+	since := time.Now().AddDate(0, 0, -90).Format(time.RFC3339)
+
+	for {
+		vars := map[string]any{
+			"teamKey":   teamKey,
+			"labelName": "public",
+			"since":     since,
+		}
+		if cursor != nil {
+			vars["cursor"] = *cursor
+		}
+
+		data, err := c.do(ctx, recentlyDonePublicIssuesQuery, vars)
+		if err != nil {
+			return nil, err
+		}
+
+		var resp struct {
+			Issues struct {
+				Nodes    []issueJSON `json:"nodes"`
+				PageInfo struct {
+					HasNextPage bool   `json:"hasNextPage"`
+					EndCursor   string `json:"endCursor"`
+				} `json:"pageInfo"`
+			} `json:"issues"`
+		}
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return nil, fmt.Errorf("decode recently done issues: %w", err)
+		}
+
+		for i := range resp.Issues.Nodes {
+			all = append(all, resp.Issues.Nodes[i].toIssue())
+		}
+
+		if !resp.Issues.PageInfo.HasNextPage {
+			break
+		}
+		cursor = &resp.Issues.PageInfo.EndCursor
+	}
+
+	return all, nil
 }
 
 func (j *issueJSON) toIssue() *Issue {

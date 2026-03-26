@@ -104,9 +104,10 @@ func (r *Renderer) RenderIssuesPage(w io.Writer, issues []*linearapi.Issue) erro
 	seen := make(map[string]bool)
 	var statuses []string
 	for _, issue := range issues {
-		if !seen[issue.State.Name] {
-			seen[issue.State.Name] = true
-			statuses = append(statuses, issue.State.Name)
+		display := issue.State.DisplayName()
+		if !seen[display] {
+			seen[display] = true
+			statuses = append(statuses, display)
 		}
 	}
 	return r.templates.ExecuteTemplate(w, "issues.html", issuesPageData{

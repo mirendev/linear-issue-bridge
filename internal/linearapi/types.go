@@ -44,19 +44,46 @@ type Label struct {
 	Color string
 }
 
+func (s State) DisplayName() string {
+	switch strings.ToLower(s.Name) {
+	case "todo", "triage", "backlog":
+		return "Open"
+	case "in progress", "in review":
+		return "In Progress"
+	case "done":
+		return "Done"
+	default:
+		if s.Type == "completed" || s.Type == "cancelled" {
+			return "Done"
+		}
+		return s.Name
+	}
+}
+
+func (s State) DisplayColor() string {
+	switch s.DisplayName() {
+	case "In Progress":
+		return "#4caf50"
+	case "Open":
+		return "#9e9e9e"
+	case "Done":
+		return "#bb87fc"
+	default:
+		return s.Color
+	}
+}
+
 var stateOrder = map[string]int{
-	"in review":   0,
-	"in progress": 1,
-	"todo":        2,
-	"triage":      3,
-	"backlog":     4,
+	"In Progress": 0,
+	"Open":        1,
+	"Done":        2,
 }
 
 func (i *Issue) stateRank() int {
-	if rank, ok := stateOrder[strings.ToLower(i.State.Name)]; ok {
+	if rank, ok := stateOrder[i.State.DisplayName()]; ok {
 		return rank
 	}
-	return 3 // default to triage-level
+	return 3
 }
 
 func SortByProgress(issues []*Issue) {

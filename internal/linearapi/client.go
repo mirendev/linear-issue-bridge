@@ -187,6 +187,29 @@ mutation AddLabel($issueID: String!, $labelID: String!) {
 }
 `
 
+const teamByKeyQuery = `
+query TeamByKey($teamKey: String!) {
+  teams(filter: { key: { eq: $teamKey } }, first: 1) {
+    nodes {
+      id
+    }
+  }
+}
+`
+
+const createIssueMutation = `
+mutation CreateIssue($teamId: String!, $title: String!, $description: String, $labelIds: [String!]) {
+  issueCreate(input: { teamId: $teamId, title: $title, description: $description, labelIds: $labelIds }) {
+    success
+    issue {
+      id
+      identifier
+      title
+    }
+  }
+}
+`
+
 type graphQLRequest struct {
 	Query     string         `json:"query"`
 	Variables map[string]any `json:"variables"`
@@ -469,6 +492,76 @@ func (c *Client) fetchRecentlyDonePublicIssues(ctx context.Context, teamKey stri
 	}
 
 	return all, nil
+}
+
+// FetchTeamID returns the UUID of a team by its key (e.g. "MIR").
+func (c *Client) FetchTeamID(ctx context.Context, teamKey string) (string, error) {
+	data, err := c.do(ctx, teamByKeyQuery, map[string]any{
+		"teamKey": teamKey,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	var resp struct {
+		Teams struct {
+			Nodes []struct {
+				ID string `json:"id"`
+			} `json:"nodes"`
+		} `json:"teams"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return "", fmt.Errorf("decode team data: %w", err)
+	}
+
+	if len(resp.Teams.Nodes) == 0 {
+		return "", fmt.Errorf("team %q not found", teamKey)
+	}
+
+	return resp.Teams.Nodes[0].ID, nil
+}
+
+type CreatedIssue struct {
+	ID         string
+	Identifier string
+}
+
+// CreateIssue creates a new issue in the given team with optional labels.
+func (c *Client) CreateIssue(ctx context.Context, teamID, title, description string, labelIDs []string) (*CreatedIssue, error) {
+	vars := map[string]any{
+		"teamId":      teamID,
+		"title":       title,
+		"description": description,
+	}
+	if len(labelIDs) > 0 {
+		vars["labelIds"] = labelIDs
+	}
+	data, err := c.do(ctx, createIssueMutation, vars)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		IssueCreate struct {
+			Success bool `json:"success"`
+			Issue   struct {
+				ID         string `json:"id"`
+				Identifier string `json:"identifier"`
+			} `json:"issue"`
+		} `json:"issueCreate"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("decode created issue: %w", err)
+	}
+
+	if !resp.IssueCreate.Success {
+		return nil, fmt.Errorf("issue creation failed")
+	}
+
+	return &CreatedIssue{
+		ID:         resp.IssueCreate.Issue.ID,
+		Identifier: resp.IssueCreate.Issue.Identifier,
+	}, nil
 }
 
 func (j *issueJSON) toIssue() *Issue {

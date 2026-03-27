@@ -143,6 +143,12 @@ header {
   padding: 0.1875rem 0.5rem;
 }
 
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .header-issues-link {
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -167,12 +173,17 @@ header {
   gap: 0.375rem;
 }
 
-.page-issues .header-issues-link-issues {
+.page-issues .header-issues-link-issues,
+.page-issues .header-issues-link-suggest {
   display: none;
 }
 
 .page-issues .header-issues-link-source {
   display: inline-flex;
+}
+
+.page-suggest .header-issues-link-suggest {
+  display: none;
 }
 
 /* ── Main ───────────────────────────────────────────── */
@@ -681,6 +692,167 @@ main {
 .description .task-list-item input[type="checkbox"] {
   margin: 0;
   accent-color: var(--color-accent);
+}
+
+/* ── Issues Header ──────────────────────────────────── */
+
+.issues-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.suggest-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--color-accent);
+  text-decoration: none;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  white-space: nowrap;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.suggest-link:hover {
+  background: var(--color-accent-light);
+  border-color: var(--color-accent);
+}
+
+/* ── Suggest Page ───────────────────────────────────── */
+
+.suggest {
+  padding: 1rem 0;
+}
+
+.suggest h1 {
+  font-family: var(--font-primary);
+  font-size: 1.875rem;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  margin-bottom: 0.75rem;
+}
+
+.suggest-intro {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+  margin-bottom: 2rem;
+}
+
+.suggest-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.suggest-field label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.375rem;
+}
+
+.suggest-optional {
+  color: var(--color-text-tertiary);
+}
+
+.suggest-field input[type="text"],
+.suggest-field textarea {
+  width: 100%;
+  font-family: var(--font-primary);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.625rem 0.875rem;
+  transition: border-color 0.15s;
+}
+
+.suggest-field input[type="text"]:focus,
+.suggest-field textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.suggest-field textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.suggest-submit {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--slate-00);
+  background: var(--color-accent);
+  border: none;
+  border-radius: 6px;
+  padding: 0.625rem 1.25rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.suggest-submit:hover {
+  opacity: 0.9;
+}
+
+@media (prefers-color-scheme: dark) {
+  .suggest-submit {
+    color: var(--slate-900);
+  }
+}
+
+.suggest-success {
+  background: var(--color-accent-light);
+  border: 1px solid var(--color-accent);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.suggest-success a {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.suggest-success a:hover {
+  border-bottom-color: var(--color-accent);
+}
+
+.suggest-error {
+  background: #fef2f2;
+  border: 1px solid var(--terra-500);
+  border-radius: 8px;
+  padding: 0.875rem 1.25rem;
+  margin-bottom: 1rem;
+  font-size: 0.9375rem;
+  color: var(--terra-600);
+}
+
+@media (prefers-color-scheme: dark) {
+  .suggest-error {
+    background: #2a1515;
+    color: #f87171;
+  }
 }
 
 /* ── Stub / Not Found ───────────────────────────────── */

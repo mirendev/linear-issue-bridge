@@ -8,7 +8,13 @@
   {{template "header"}}
   <main>
     <div class="issues-list">
-      <h1>Issues</h1>
+      <div class="issues-header">
+        <h1>Issues</h1>
+        <a href="/suggest" class="suggest-link">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm1.414 1.06a.25.25 0 0 0-.354 0L3.463 11.1l-.47 1.644 1.644-.47 8.61-8.61a.25.25 0 0 0 0-.354Z"></path></svg>
+          Submit an issue
+        </a>
+      </div>
       <p class="issues-count"></p>
       {{if .Issues}}
         <div class="issues-filters">

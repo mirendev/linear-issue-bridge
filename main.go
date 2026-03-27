@@ -50,6 +50,23 @@ func run() error {
 		return fmt.Errorf("initialize renderer: %w", err)
 	}
 
+	ctx0, cancel0 := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel0()
+	teamID, err := client.FetchTeamID(ctx0, teamKey)
+	if err != nil {
+		return fmt.Errorf("fetch team ID for %s: %w", teamKey, err)
+	}
+	slog.Info("resolved team", "key", teamKey, "id", teamID)
+
+	publicLabelID, err := client.FetchLabelByName(ctx0, teamKey, "public")
+	if err != nil {
+		return fmt.Errorf("fetch public label: %w", err)
+	}
+	if publicLabelID == "" {
+		return fmt.Errorf("label %q not found — create it in Linear first", "public")
+	}
+	slog.Info("resolved label", "name", "public", "id", publicLabelID)
+
 	identifierPattern := regexp.MustCompile(`^` + regexp.QuoteMeta(strings.ToUpper(teamKey)) + `-\d+$`)
 
 	mux := http.NewServeMux()
@@ -80,6 +97,61 @@ func run() error {
 
 		if err := renderer.RenderIssuesPage(w, issues); err != nil {
 			slog.Error("render issues", "error", err)
+		}
+	})
+
+	mux.HandleFunc("GET /suggest", func(w http.ResponseWriter, r *http.Request) {
+		if err := renderer.RenderSuggestPage(w, page.SuggestPageData{}); err != nil {
+			slog.Error("render suggest", "error", err)
+		}
+	})
+
+	mux.HandleFunc("POST /suggest", func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+
+		if r.FormValue("website") != "" {
+			http.Redirect(w, r, "/suggest", http.StatusSeeOther)
+			return
+		}
+
+		title := strings.TrimSpace(r.FormValue("title"))
+		description := strings.TrimSpace(r.FormValue("description"))
+
+		if title == "" {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			renderer.RenderSuggestPage(w, page.SuggestPageData{
+				Title:       title,
+				Description: description,
+				Error:       "Title is required.",
+			})
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+
+		created, err := client.CreateIssue(ctx, teamID, title, description, []string{publicLabelID})
+		if err != nil {
+			slog.Error("create issue", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			renderer.RenderSuggestPage(w, page.SuggestPageData{
+				Title:       title,
+				Description: description,
+				Error:       "Something went wrong. Please try again.",
+			})
+			return
+		}
+
+		issueCache.Invalidate(created.Identifier)
+		slog.Info("suggestion created", "identifier", created.Identifier)
+		if err := renderer.RenderSuggestPage(w, page.SuggestPageData{
+			Success:    true,
+			Identifier: created.Identifier,
+		}); err != nil {
+			slog.Error("render suggest success", "error", err)
 		}
 	})
 

@@ -69,6 +69,16 @@ func (c *Cache) Get(ctx context.Context, identifier string) (*linearapi.Issue, e
 	return issue, nil
 }
 
+func (c *Cache) Invalidate(identifier string) {
+	c.mu.Lock()
+	delete(c.entries, identifier)
+	c.mu.Unlock()
+
+	c.listMu.Lock()
+	c.listEntries = make(map[string]*listEntry)
+	c.listMu.Unlock()
+}
+
 func (c *Cache) GetPublicIssues(ctx context.Context, teamKey string) ([]*linearapi.Issue, error) {
 	c.listMu.RLock()
 	e, ok := c.listEntries[teamKey]

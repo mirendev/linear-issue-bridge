@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {{template "head"}}
+  <title>Submit a Suggestion — Miren</title>
+</head>
+<body class="page-suggest">
+  {{template "header"}}
+  <main>
+    <div class="suggest">
+      <h1>Submit a Suggestion</h1>
+      <p class="suggest-intro">
+        Have an idea, feature request, or bug report? Let us know and we'll add
+        it to our triage queue.
+      </p>
+      {{if .Success}}
+        <div class="suggest-success">
+          <p>Thanks for your suggestion! It's been added as <a href="/{{.Identifier}}">{{.Identifier}}</a>.</p>
+        </div>
+      {{else}}
+        {{if .Error}}
+          <div class="suggest-error">
+            <p>{{.Error}}</p>
+          </div>
+        {{end}}
+        <form method="POST" action="/suggest" class="suggest-form">
+          <div class="suggest-field">
+            <label for="title">Title</label>
+            <input type="text" id="title" name="title" required maxlength="200"
+              placeholder="Brief summary of your suggestion" value="{{.Title}}">
+          </div>
+          <div class="suggest-field">
+            <label for="description">Description <span class="suggest-optional">(optional)</span></label>
+            <textarea id="description" name="description" rows="6"
+              placeholder="Add any details, context, or steps to reproduce">{{.Description}}</textarea>
+          </div>
+          <div class="suggest-field" aria-hidden="true" style="display:none">
+            <label for="website">Website</label>
+            <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+          </div>
+          <button type="submit" class="suggest-submit">Submit suggestion</button>
+        </form>
+      {{end}}
+    </div>
+  </main>
+  {{template "footer"}}
+</body>
+</html>

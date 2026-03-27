@@ -117,6 +117,18 @@ func (r *Renderer) RenderIssuesPage(w io.Writer, issues []*linearapi.Issue) erro
 	})
 }
 
+type SuggestPageData struct {
+	Title       string
+	Description string
+	Error       string
+	Success     bool
+	Identifier  string
+}
+
+func (r *Renderer) RenderSuggestPage(w io.Writer, data SuggestPageData) error {
+	return r.templates.ExecuteTemplate(w, "suggest.html", data)
+}
+
 func (r *Renderer) RenderNotFound(w io.Writer) error {
 	return r.templates.ExecuteTemplate(w, "notfound.html", nil)
 }

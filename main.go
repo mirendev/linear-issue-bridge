@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -67,6 +68,15 @@ func run() error {
 	}
 	slog.Info("resolved label", "name", "public", "id", publicLabelID)
 
+	userSubmittedLabelID, err := client.FetchLabelByName(ctx0, teamKey, "user-submitted")
+	if err != nil {
+		return fmt.Errorf("fetch user-submitted label: %w", err)
+	}
+	if userSubmittedLabelID == "" {
+		return fmt.Errorf("label %q not found — create it in Linear first", "user-submitted")
+	}
+	slog.Info("resolved label", "name", "user-submitted", "id", userSubmittedLabelID)
+
 	identifierPattern := regexp.MustCompile(`^` + regexp.QuoteMeta(strings.ToUpper(teamKey)) + `-\d+$`)
 
 	mux := http.NewServeMux()
@@ -107,7 +117,8 @@ func run() error {
 	})
 
 	mux.HandleFunc("POST /suggest", func(w http.ResponseWriter, r *http.Request) {
-		if err := r.ParseForm(); err != nil {
+		const maxUploadSize = 10 << 20 // 10 MB
+		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
 			http.Error(w, "Bad request", http.StatusBadRequest)
 			return
 		}
@@ -130,10 +141,32 @@ func run() error {
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
 
-		created, err := client.CreateIssue(ctx, teamID, title, description, []string{publicLabelID})
+		file, header, err := r.FormFile("attachment")
+		if err == nil {
+			defer file.Close()
+			fileData, err := io.ReadAll(io.LimitReader(file, maxUploadSize))
+			if err != nil {
+				slog.Error("read attachment", "error", err)
+			} else {
+				contentType := header.Header.Get("Content-Type")
+				if contentType == "" {
+					contentType = "application/octet-stream"
+				}
+				assetURL, err := client.UploadFile(ctx, header.Filename, contentType, fileData)
+				if err != nil {
+					slog.Error("upload attachment", "error", err)
+				} else if strings.HasPrefix(contentType, "image/") {
+					description += "\n\n![" + header.Filename + "](" + assetURL + ")"
+				} else {
+					description += "\n\n[" + header.Filename + "](" + assetURL + ")"
+				}
+			}
+		}
+
+		created, err := client.CreateIssue(ctx, teamID, title, description, []string{publicLabelID, userSubmittedLabelID})
 		if err != nil {
 			slog.Error("create issue", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)

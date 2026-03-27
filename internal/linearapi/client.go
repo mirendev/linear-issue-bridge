@@ -187,6 +187,21 @@ mutation AddLabel($issueID: String!, $labelID: String!) {
 }
 `
 
+const fileUploadMutation = `
+mutation FileUpload($size: Int!, $contentType: String!, $filename: String!) {
+  fileUpload(size: $size, contentType: $contentType, filename: $filename) {
+    uploadFile {
+      uploadUrl
+      assetUrl
+      headers {
+        key
+        value
+      }
+    }
+  }
+}
+`
+
 const teamByKeyQuery = `
 query TeamByKey($teamKey: String!) {
   teams(filter: { key: { eq: $teamKey } }, first: 1) {
@@ -562,6 +577,58 @@ func (c *Client) CreateIssue(ctx context.Context, teamID, title, description str
 		ID:         resp.IssueCreate.Issue.ID,
 		Identifier: resp.IssueCreate.Issue.Identifier,
 	}, nil
+}
+
+// UploadFile uploads a file to Linear's storage and returns the public asset URL.
+func (c *Client) UploadFile(ctx context.Context, filename, contentType string, fileData []byte) (string, error) {
+	data, err := c.do(ctx, fileUploadMutation, map[string]any{
+		"size":        len(fileData),
+		"contentType": contentType,
+		"filename":    filename,
+	})
+	if err != nil {
+		return "", fmt.Errorf("request upload URL: %w", err)
+	}
+
+	var resp struct {
+		FileUpload struct {
+			UploadFile struct {
+				UploadURL string `json:"uploadUrl"`
+				AssetURL  string `json:"assetUrl"`
+				Headers   []struct {
+					Key   string `json:"key"`
+					Value string `json:"value"`
+				} `json:"headers"`
+			} `json:"uploadFile"`
+		} `json:"fileUpload"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return "", fmt.Errorf("decode upload response: %w", err)
+	}
+
+	upload := resp.FileUpload.UploadFile
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, upload.UploadURL, bytes.NewReader(fileData))
+	if err != nil {
+		return "", fmt.Errorf("create upload request: %w", err)
+	}
+	req.Header.Set("Content-Type", contentType)
+	for _, h := range upload.Headers {
+		req.Header.Set(h.Key, h.Value)
+	}
+
+	putResp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("upload file: %w", err)
+	}
+	defer putResp.Body.Close()
+
+	if putResp.StatusCode < 200 || putResp.StatusCode >= 300 {
+		body, _ := io.ReadAll(putResp.Body)
+		return "", fmt.Errorf("upload returned %d: %s", putResp.StatusCode, string(body))
+	}
+
+	return upload.AssetURL, nil
 }
 
 func (j *issueJSON) toIssue() *Issue {

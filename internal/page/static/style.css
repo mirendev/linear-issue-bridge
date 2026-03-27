@@ -791,6 +791,12 @@ main {
   min-height: 120px;
 }
 
+.suggest-field input[type="file"] {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
 .suggest-submit {
   align-self: flex-start;
   font-family: var(--font-mono);

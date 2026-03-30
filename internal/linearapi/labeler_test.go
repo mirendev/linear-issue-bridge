@@ -19,12 +19,11 @@ func TestPublicLabeler_IssueNotFound(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 	labeler := NewPublicLabeler(client, "MIR")
 
 	err := labeler.EnsurePublicLabel(context.Background(), "MIR-999")
@@ -58,12 +57,11 @@ func TestPublicLabeler_AlreadyLabeled(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 	labeler := NewPublicLabeler(client, "MIR")
 
 	err := labeler.EnsurePublicLabel(context.Background(), "MIR-42")
@@ -97,12 +95,11 @@ func TestPublicLabeler_NonpublicLabel(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 	labeler := NewPublicLabeler(client, "MIR")
 
 	err := labeler.EnsurePublicLabel(context.Background(), "MIR-42")
@@ -115,7 +112,7 @@ func TestPublicLabeler_AppliesLabel(t *testing.T) {
 	callCount := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req graphQLRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		_ = json.NewDecoder(r.Body).Decode(&req)
 		callCount++
 
 		var resp any
@@ -170,12 +167,11 @@ func TestPublicLabeler_AppliesLabel(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 	labeler := NewPublicLabeler(client, "MIR")
 
 	err := labeler.EnsurePublicLabel(context.Background(), "MIR-42")
@@ -195,12 +191,11 @@ func TestPublicLabeler_FetchIssueError(t *testing.T) {
 			"errors": []map[string]any{{"message": "something went wrong"}},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 	labeler := NewPublicLabeler(client, "MIR")
 
 	err := labeler.EnsurePublicLabel(context.Background(), "MIR-42")

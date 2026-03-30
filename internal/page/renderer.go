@@ -120,6 +120,7 @@ func (r *Renderer) RenderIssuesPage(w io.Writer, issues []*linearapi.Issue) erro
 type SuggestPageData struct {
 	Title       string
 	Description string
+	Contact     string
 	Error       string
 	Success     bool
 	Identifier  string

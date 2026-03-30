@@ -37,10 +37,28 @@ func TestParseIdentifier(t *testing.T) {
 	}
 }
 
+// newTestClient creates a client with a mock token endpoint that always succeeds.
+func newTestClient(graphqlURL string) *Client {
+	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"access_token": "test-token",
+			"expires_in":   86400,
+			"token_type":   "Bearer",
+		})
+	}))
+	// Note: token server won't be explicitly closed, but that's fine for tests.
+	client := NewClient("test-id", "test-secret")
+	client.SetEndpoint(graphqlURL)
+	client.SetTokenURL(tokenSrv.URL)
+	return client
+}
+
 func TestFetchIssue(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "test-key" {
-			t.Errorf("expected Authorization header 'test-key', got %q", r.Header.Get("Authorization"))
+		auth := r.Header.Get("Authorization")
+		if auth != "Bearer test-token" {
+			t.Errorf("expected Authorization 'Bearer test-token', got %q", auth)
 		}
 
 		resp := map[string]any{
@@ -80,12 +98,11 @@ func TestFetchIssue(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 
 	issue, err := client.FetchIssue(context.Background(), "MIR-42")
 	if err != nil {
@@ -137,12 +154,11 @@ func TestFetchIssueNotFound(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 
 	issue, err := client.FetchIssue(context.Background(), "MIR-999")
 	if err != nil {
@@ -160,12 +176,11 @@ func TestFetchIssueGraphQLError(t *testing.T) {
 			"errors": []map[string]any{{"message": "something went wrong"}},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 
 	_, err := client.FetchIssue(context.Background(), "MIR-42")
 	if err == nil {
@@ -185,12 +200,11 @@ func TestFetchLabelByName(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 
 	id, err := client.FetchLabelByName(context.Background(), "MIR", "public")
 	if err != nil {
@@ -211,12 +225,11 @@ func TestFetchLabelByNameNotFound(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 
 	id, err := client.FetchLabelByName(context.Background(), "MIR", "nonexistent")
 	if err != nil {
@@ -231,7 +244,7 @@ func TestAddLabel(t *testing.T) {
 	var gotQuery string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req graphQLRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		_ = json.NewDecoder(r.Body).Decode(&req)
 		gotQuery = req.Query
 
 		resp := map[string]any{
@@ -242,12 +255,11 @@ func TestAddLabel(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 
 	err := client.AddLabel(context.Background(), "issue-uuid-1", "label-uuid-1")
 	if err != nil {
@@ -255,5 +267,77 @@ func TestAddLabel(t *testing.T) {
 	}
 	if gotQuery == "" {
 		t.Fatal("expected a GraphQL query to be sent")
+	}
+}
+
+func TestEnsureToken(t *testing.T) {
+	tokenCalls := 0
+	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenCalls++
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		if ct := r.Header.Get("Content-Type"); ct != "application/x-www-form-urlencoded" {
+			t.Errorf("expected Content-Type application/x-www-form-urlencoded, got %q", ct)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if got := r.FormValue("grant_type"); got != "client_credentials" {
+			t.Errorf("grant_type = %q, want client_credentials", got)
+		}
+		if got := r.FormValue("client_id"); got != "test-id" {
+			t.Errorf("client_id = %q, want test-id", got)
+		}
+		if got := r.FormValue("client_secret"); got != "test-secret" {
+			t.Errorf("client_secret = %q, want test-secret", got)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"access_token": "oauth-token-123",
+			"expires_in":   86400,
+			"token_type":   "Bearer",
+		})
+	}))
+	defer tokenSrv.Close()
+
+	client := NewClient("test-id", "test-secret")
+	client.SetTokenURL(tokenSrv.URL)
+
+	token, err := client.ensureToken(context.Background())
+	if err != nil {
+		t.Fatalf("ensureToken: %v", err)
+	}
+	if token != "oauth-token-123" {
+		t.Errorf("token = %q, want oauth-token-123", token)
+	}
+
+	// Second call should use cached token
+	token2, err := client.ensureToken(context.Background())
+	if err != nil {
+		t.Fatalf("ensureToken (cached): %v", err)
+	}
+	if token2 != "oauth-token-123" {
+		t.Errorf("cached token = %q, want oauth-token-123", token2)
+	}
+	if tokenCalls != 1 {
+		t.Errorf("expected 1 token call (cached), got %d", tokenCalls)
+	}
+}
+
+func TestEnsureTokenError(t *testing.T) {
+	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error": "invalid_client"}`))
+	}))
+	defer tokenSrv.Close()
+
+	client := NewClient("bad-id", "bad-secret")
+	client.SetTokenURL(tokenSrv.URL)
+
+	_, err := client.ensureToken(context.Background())
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }

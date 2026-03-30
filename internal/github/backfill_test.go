@@ -21,22 +21,22 @@ func TestRepoScanner_ScanRepo(t *testing.T) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/org/repo/pulls", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]map[string]string{
+		_ = json.NewEncoder(w).Encode([]map[string]string{
 			{"title": "MIR-4: new feature", "body": "implements MIR-5"},
 		})
 	})
 	mux.HandleFunc("/repos/org/repo/issues", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]map[string]string{
+		_ = json.NewEncoder(w).Encode([]map[string]string{
 			{"title": "bug report", "body": "related to MIR-1"},
 		})
 	})
 	mux.HandleFunc("/repos/org/repo/issues/comments", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]map[string]string{
+		_ = json.NewEncoder(w).Encode([]map[string]string{
 			{"body": "see also MIR-6"},
 		})
 	})
 	mux.HandleFunc("/repos/org/repo/pulls/comments", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]map[string]string{
+		_ = json.NewEncoder(w).Encode([]map[string]string{
 			{"body": "this relates to MIR-7 and OTHER-99"},
 		})
 	})
@@ -78,7 +78,7 @@ func TestRepoScanner_GitLog(t *testing.T) {
 
 	mux := http.NewServeMux()
 	emptyHandler := func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]map[string]string{})
+		_ = json.NewEncoder(w).Encode([]map[string]string{})
 	}
 	mux.HandleFunc("/repos/org/repo/pulls", emptyHandler)
 	mux.HandleFunc("/repos/org/repo/issues", emptyHandler)
@@ -111,12 +111,12 @@ func TestRepoScanner_GitLog(t *testing.T) {
 func TestRepoScanner_NoGitDir(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/org/repo/pulls", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]map[string]string{
+		_ = json.NewEncoder(w).Encode([]map[string]string{
 			{"title": "MIR-1: feature", "body": ""},
 		})
 	})
 	emptyHandler := func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]map[string]string{})
+		_ = json.NewEncoder(w).Encode([]map[string]string{})
 	}
 	mux.HandleFunc("/repos/org/repo/issues", emptyHandler)
 	mux.HandleFunc("/repos/org/repo/issues/comments", emptyHandler)
@@ -147,17 +147,17 @@ func TestRepoScanner_Pagination(t *testing.T) {
 		page++
 		if page == 1 {
 			w.Header().Set("Link", fmt.Sprintf(`<%s/repos/org/repo/pulls?page=2&per_page=100>; rel="next"`, srvURL))
-			json.NewEncoder(w).Encode([]map[string]string{
+			_ = json.NewEncoder(w).Encode([]map[string]string{
 				{"title": "MIR-10", "body": ""},
 			})
 		} else {
-			json.NewEncoder(w).Encode([]map[string]string{
+			_ = json.NewEncoder(w).Encode([]map[string]string{
 				{"title": "MIR-11", "body": ""},
 			})
 		}
 	})
 	emptyHandler := func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]map[string]string{})
+		_ = json.NewEncoder(w).Encode([]map[string]string{})
 	}
 	mux.HandleFunc("/repos/org/repo/issues", emptyHandler)
 	mux.HandleFunc("/repos/org/repo/issues/comments", emptyHandler)
@@ -190,7 +190,7 @@ func TestRepoScanner_APIError(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/org/repo/pulls", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
-		fmt.Fprint(w, `{"message":"rate limited"}`)
+		_, _ = fmt.Fprint(w, `{"message":"rate limited"}`)
 	})
 
 	srv := httptest.NewServer(mux)
@@ -210,10 +210,10 @@ func TestRepoScanner_AuthHeader(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/org/repo/pulls", func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
-		json.NewEncoder(w).Encode([]map[string]string{})
+		_ = json.NewEncoder(w).Encode([]map[string]string{})
 	})
 	emptyHandler := func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]map[string]string{})
+		_ = json.NewEncoder(w).Encode([]map[string]string{})
 	}
 	mux.HandleFunc("/repos/org/repo/issues", emptyHandler)
 	mux.HandleFunc("/repos/org/repo/issues/comments", emptyHandler)

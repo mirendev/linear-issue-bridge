@@ -35,6 +35,11 @@
               placeholder="Add any details, context, or steps to reproduce">{{.Description}}</textarea>
           </div>
           <div class="suggest-field">
+            <label for="contact">Contact info <span class="suggest-optional">(optional — email, GitHub username, or Discord ID so we can follow up)</span></label>
+            <input type="text" id="contact" name="contact" maxlength="200"
+              placeholder="e.g. user@example.com, @ghuser, discord#1234" value="{{.Contact}}">
+          </div>
+          <div class="suggest-field">
             <label for="attachment">Attachment <span class="suggest-optional">(optional — screenshot or code snippet)</span></label>
             <input type="file" id="attachment" name="attachment"
               accept="image/*,.txt,.log,.json,.go,.py,.js,.ts,.rs,.sh,.yml,.yaml,.toml,.md">

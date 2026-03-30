@@ -31,17 +31,21 @@ func run() error {
 		port = "8080"
 	}
 
-	apiKey := os.Getenv("LINEAR_API_KEY")
-	if apiKey == "" {
-		return fmt.Errorf("LINEAR_API_KEY is required")
+	clientID := os.Getenv("LINEAR_OAUTH_CLIENT_ID")
+	if clientID == "" {
+		return fmt.Errorf("LINEAR_OAUTH_CLIENT_ID is required")
 	}
+	clientSecret := os.Getenv("LINEAR_OAUTH_CLIENT_SECRET")
+	if clientSecret == "" {
+		return fmt.Errorf("LINEAR_OAUTH_CLIENT_SECRET is required")
+	}
+
+	client := linearapi.NewClient(clientID, clientSecret)
 
 	teamKey := os.Getenv("LINEAR_TEAM_KEY")
 	if teamKey == "" {
 		return fmt.Errorf("LINEAR_TEAM_KEY is required")
 	}
-
-	client := linearapi.NewClient(apiKey)
 	issueCache := cache.New(client, cache.DefaultTTL)
 
 	fathomSiteID := os.Getenv("FATHOM_SITE_ID")
@@ -83,7 +87,7 @@ func run() error {
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "ok")
+		_, _ = fmt.Fprint(w, "ok")
 	})
 
 	mux.Handle("GET /static/", http.StripPrefix("/static/", renderer.StaticHandler()))
@@ -130,12 +134,14 @@ func run() error {
 
 		title := strings.TrimSpace(r.FormValue("title"))
 		description := strings.TrimSpace(r.FormValue("description"))
+		contact := strings.TrimSpace(r.FormValue("contact"))
 
 		if title == "" {
 			w.WriteHeader(http.StatusUnprocessableEntity)
-			renderer.RenderSuggestPage(w, page.SuggestPageData{
+			_ = renderer.RenderSuggestPage(w, page.SuggestPageData{
 				Title:       title,
 				Description: description,
+				Contact:     contact,
 				Error:       "Title is required.",
 			})
 			return
@@ -146,7 +152,7 @@ func run() error {
 
 		file, header, err := r.FormFile("attachment")
 		if err == nil {
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 			fileData, err := io.ReadAll(io.LimitReader(file, maxUploadSize))
 			if err != nil {
 				slog.Error("read attachment", "error", err)
@@ -166,13 +172,18 @@ func run() error {
 			}
 		}
 
+		if contact != "" {
+			description += "\n\n**Contact:** " + contact
+		}
+
 		created, err := client.CreateIssue(ctx, teamID, title, description, []string{publicLabelID, userSubmittedLabelID})
 		if err != nil {
 			slog.Error("create issue", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
-			renderer.RenderSuggestPage(w, page.SuggestPageData{
+			_ = renderer.RenderSuggestPage(w, page.SuggestPageData{
 				Title:       title,
 				Description: description,
+				Contact:     contact,
 				Error:       "Something went wrong. Please try again.",
 			})
 			return

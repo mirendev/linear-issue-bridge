@@ -17,7 +17,8 @@ make lint     # Run golangci-lint
 ## Running Locally
 
 ```bash
-export LINEAR_API_KEY=<your-key>
+export LINEAR_OAUTH_CLIENT_ID=<your-client-id>
+export LINEAR_OAUTH_CLIENT_SECRET=<your-client-secret>
 export LINEAR_TEAM_KEY=MIR
 export PORT=8080
 go run .
@@ -46,7 +47,8 @@ Miren remembers env vars and secrets from previous deploys, so you only need to 
 | Env Var | Description |
 |---------|-------------|
 | `PORT` | Listen port (set automatically by Miren) |
-| `LINEAR_API_KEY` | Linear API key for GraphQL queries |
+| `LINEAR_OAUTH_CLIENT_ID` | OAuth app client ID (from Linear Settings > API > Applications) |
+| `LINEAR_OAUTH_CLIENT_SECRET` | OAuth app client secret |
 | `LINEAR_TEAM_KEY` | Issue prefix, e.g. `MIR` |
 | `GITHUB_WEBHOOK_SECRET` | Enables `POST /webhook/github`; GitHub HMAC-SHA256 secret |
 | `FATHOM_SITE_ID` | Fathom Analytics site ID; omit to disable tracking |

@@ -193,7 +193,7 @@ func (s *RepoScanner) paginate(ctx context.Context, source, url string, decode f
 			return err
 		}
 		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil {
 			return err
 		}

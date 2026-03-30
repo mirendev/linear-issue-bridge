@@ -244,7 +244,7 @@ func TestAddLabel(t *testing.T) {
 	var gotQuery string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req graphQLRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		_ = json.NewDecoder(r.Body).Decode(&req)
 		gotQuery = req.Query
 
 		resp := map[string]any{
@@ -329,7 +329,7 @@ func TestEnsureToken(t *testing.T) {
 func TestEnsureTokenError(t *testing.T) {
 	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error": "invalid_client"}`))
+		_, _ = w.Write([]byte(`{"error": "invalid_client"}`))
 	}))
 	defer tokenSrv.Close()
 

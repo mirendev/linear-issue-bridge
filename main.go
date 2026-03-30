@@ -87,7 +87,7 @@ func run() error {
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "ok")
+		_, _ = fmt.Fprint(w, "ok")
 	})
 
 	mux.Handle("GET /static/", http.StripPrefix("/static/", renderer.StaticHandler()))
@@ -138,7 +138,7 @@ func run() error {
 
 		if title == "" {
 			w.WriteHeader(http.StatusUnprocessableEntity)
-			renderer.RenderSuggestPage(w, page.SuggestPageData{
+			_ = renderer.RenderSuggestPage(w, page.SuggestPageData{
 				Title:       title,
 				Description: description,
 				Contact:     contact,
@@ -152,7 +152,7 @@ func run() error {
 
 		file, header, err := r.FormFile("attachment")
 		if err == nil {
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 			fileData, err := io.ReadAll(io.LimitReader(file, maxUploadSize))
 			if err != nil {
 				slog.Error("read attachment", "error", err)
@@ -180,7 +180,7 @@ func run() error {
 		if err != nil {
 			slog.Error("create issue", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
-			renderer.RenderSuggestPage(w, page.SuggestPageData{
+			_ = renderer.RenderSuggestPage(w, page.SuggestPageData{
 				Title:       title,
 				Description: description,
 				Contact:     contact,

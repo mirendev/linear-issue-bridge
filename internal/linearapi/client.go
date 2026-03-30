@@ -81,7 +81,7 @@ func (c *Client) ensureToken(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("fetch token: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -388,7 +388,7 @@ func (c *Client) do(ctx context.Context, query string, variables map[string]any)
 	if err != nil {
 		return nil, fmt.Errorf("execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {

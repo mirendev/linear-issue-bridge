@@ -697,7 +697,7 @@ func (c *Client) UploadFile(ctx context.Context, filename, contentType string, f
 	if err != nil {
 		return "", fmt.Errorf("upload file: %w", err)
 	}
-	defer putResp.Body.Close()
+	defer func() { _ = putResp.Body.Close() }()
 
 	if putResp.StatusCode < 200 || putResp.StatusCode >= 300 {
 		body, _ := io.ReadAll(putResp.Body)

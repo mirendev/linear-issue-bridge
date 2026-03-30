@@ -23,8 +23,7 @@ func TestPublicLabeler_IssueNotFound(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 	labeler := NewPublicLabeler(client, "MIR")
 
 	err := labeler.EnsurePublicLabel(context.Background(), "MIR-999")
@@ -62,8 +61,7 @@ func TestPublicLabeler_AlreadyLabeled(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 	labeler := NewPublicLabeler(client, "MIR")
 
 	err := labeler.EnsurePublicLabel(context.Background(), "MIR-42")
@@ -101,8 +99,7 @@ func TestPublicLabeler_NonpublicLabel(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 	labeler := NewPublicLabeler(client, "MIR")
 
 	err := labeler.EnsurePublicLabel(context.Background(), "MIR-42")
@@ -174,8 +171,7 @@ func TestPublicLabeler_AppliesLabel(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 	labeler := NewPublicLabeler(client, "MIR")
 
 	err := labeler.EnsurePublicLabel(context.Background(), "MIR-42")
@@ -199,8 +195,7 @@ func TestPublicLabeler_FetchIssueError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient("test-key")
-	client.SetEndpoint(srv.URL)
+	client := newTestClient(srv.URL)
 	labeler := NewPublicLabeler(client, "MIR")
 
 	err := labeler.EnsurePublicLabel(context.Background(), "MIR-42")

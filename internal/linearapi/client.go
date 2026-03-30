@@ -7,32 +7,103 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
-const defaultEndpoint = "https://api.linear.app/graphql"
+const (
+	defaultEndpoint  = "https://api.linear.app/graphql"
+	defaultTokenURL  = "https://api.linear.app/oauth/token"
+	tokenExpiryBuffer = 5 * time.Minute
+)
 
 type Client struct {
-	apiKey     string
-	endpoint   string
-	httpClient *http.Client
+	clientID     string
+	clientSecret string
+	endpoint     string
+	tokenURL     string
+	httpClient   *http.Client
+
+	tokenMu     sync.Mutex
+	token       string
+	tokenExpiry time.Time
 }
 
-func NewClient(apiKey string) *Client {
+func NewClient(clientID, clientSecret string) *Client {
 	return &Client{
-		apiKey:   apiKey,
-		endpoint: defaultEndpoint,
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		endpoint:     defaultEndpoint,
+		tokenURL:     defaultTokenURL,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
 	}
 }
 
+
+
 // SetEndpoint overrides the GraphQL endpoint (useful for testing).
 func (c *Client) SetEndpoint(endpoint string) {
 	c.endpoint = endpoint
+}
+
+// SetTokenURL overrides the OAuth token endpoint (useful for testing).
+func (c *Client) SetTokenURL(tokenURL string) {
+	c.tokenURL = tokenURL
+}
+
+func (c *Client) ensureToken(ctx context.Context) (string, error) {
+	c.tokenMu.Lock()
+	defer c.tokenMu.Unlock()
+
+	if c.token != "" && time.Now().Before(c.tokenExpiry) {
+		return c.token, nil
+	}
+
+	form := url.Values{
+		"grant_type":    {"client_credentials"},
+		"client_id":     {c.clientID},
+		"client_secret": {c.clientSecret},
+		"scope":         {"read,write"},
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.tokenURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		return "", fmt.Errorf("create token request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("fetch token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read token response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("token endpoint returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var tokenResp struct {
+		AccessToken string `json:"access_token"`
+		ExpiresIn   int    `json:"expires_in"`
+	}
+	if err := json.Unmarshal(body, &tokenResp); err != nil {
+		return "", fmt.Errorf("decode token response: %w", err)
+	}
+
+	c.token = tokenResp.AccessToken
+	c.tokenExpiry = time.Now().Add(time.Duration(tokenResp.ExpiresIn)*time.Second - tokenExpiryBuffer)
+
+	return c.token, nil
 }
 
 const issueByIdentifierQuery = `
@@ -214,7 +285,7 @@ query TeamByKey($teamKey: String!) {
 
 const createIssueMutation = `
 mutation CreateIssue($teamId: String!, $title: String!, $description: String, $labelIds: [String!]) {
-  issueCreate(input: { teamId: $teamId, title: $title, description: $description, labelIds: $labelIds }) {
+  issueCreate(input: { teamId: $teamId, title: $title, description: $description, labelIds: $labelIds, displayIconUrl: "https://linear.miren.garden/static/logo-blue.svg" }) {
     success
     issue {
       id
@@ -290,6 +361,11 @@ func ParseIdentifier(identifier string) (teamKey string, number int, err error) 
 }
 
 func (c *Client) do(ctx context.Context, query string, variables map[string]any) (json.RawMessage, error) {
+	token, err := c.ensureToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("authenticate: %w", err)
+	}
+
 	reqBody := graphQLRequest{
 		Query:     query,
 		Variables: variables,
@@ -306,7 +382,7 @@ func (c *Client) do(ctx context.Context, query string, variables map[string]any)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", c.apiKey)
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

@@ -31,9 +31,13 @@ func run() error {
 	flag.StringVar(&gitDir, "git-dir", ".", "local git clone to scan for commit messages")
 	flag.Parse()
 
-	apiKey := os.Getenv("LINEAR_API_KEY")
-	if apiKey == "" {
-		return fmt.Errorf("LINEAR_API_KEY is required")
+	clientID := os.Getenv("LINEAR_OAUTH_CLIENT_ID")
+	if clientID == "" {
+		return fmt.Errorf("LINEAR_OAUTH_CLIENT_ID is required")
+	}
+	clientSecret := os.Getenv("LINEAR_OAUTH_CLIENT_SECRET")
+	if clientSecret == "" {
+		return fmt.Errorf("LINEAR_OAUTH_CLIENT_SECRET is required")
 	}
 
 	teamKey := os.Getenv("LINEAR_TEAM_KEY")
@@ -72,7 +76,7 @@ func run() error {
 		return nil
 	}
 
-	client := linearapi.NewClient(apiKey)
+	client := linearapi.NewClient(clientID, clientSecret)
 	labeler := linearapi.NewPublicLabeler(client, teamKey)
 
 	for i, id := range identifiers {

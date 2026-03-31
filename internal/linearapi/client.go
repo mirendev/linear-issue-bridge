@@ -285,7 +285,7 @@ query TeamByKey($teamKey: String!) {
 
 const createIssueMutation = `
 mutation CreateIssue($teamId: String!, $title: String!, $description: String, $labelIds: [String!]) {
-  issueCreate(input: { teamId: $teamId, title: $title, description: $description, labelIds: $labelIds, displayIconUrl: "https://linear.miren.garden/static/logo-blue.svg" }) {
+  issueCreate(input: { teamId: $teamId, title: $title, description: $description, labelIds: $labelIds }) {
     success
     issue {
       id

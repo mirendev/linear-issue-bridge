@@ -69,6 +69,7 @@ type issuePageData struct {
 	Issue           *linearapi.Issue
 	DescriptionHTML template.HTML
 	GitHubPRs       []linearapi.Attachment
+	DuplicateOf     *linearapi.Relation
 	TeamKey         string
 }
 
@@ -78,6 +79,7 @@ func (r *Renderer) RenderIssuePage(w io.Writer, issue *linearapi.Issue) error {
 		Issue:           issue,
 		DescriptionHTML: descHTML,
 		GitHubPRs:       issue.GitHubPRs(),
+		DuplicateOf:     issue.DuplicateOf(),
 		TeamKey:         r.teamKey,
 	})
 }

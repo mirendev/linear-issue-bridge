@@ -146,6 +146,15 @@ query IssueByIdentifier($teamKey: String!, $number: Float!) {
           title
         }
       }
+      relations {
+        nodes {
+          type
+          relatedIssue {
+            identifier
+            title
+          }
+        }
+      }
     }
   }
 }
@@ -216,6 +225,48 @@ query RecentlyDonePublicIssues($teamKey: String!, $labelName: String!, $since: D
       labels: { some: { name: { eq: $labelName } } }
       state: { type: { in: ["completed"] } }
       completedAt: { gte: $since }
+    }
+    first: 50
+    after: $cursor
+    orderBy: updatedAt
+  ) {
+    nodes {
+      id
+      identifier
+      title
+      url
+      priority
+      createdAt
+      updatedAt
+      state {
+        name
+        color
+        type
+      }
+      labels {
+        nodes {
+          id
+          name
+          color
+        }
+      }
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+`
+
+const recentlyCancelledPublicIssuesQuery = `
+query RecentlyCancelledPublicIssues($teamKey: String!, $labelName: String!, $since: DateTimeOrDuration!, $cursor: String) {
+  issues(
+    filter: {
+      team: { key: { eq: $teamKey } }
+      labels: { some: { name: { eq: $labelName } } }
+      state: { type: { in: ["cancelled"] } }
+      canceledAt: { gte: $since }
     }
     first: 50
     after: $cursor
@@ -345,6 +396,15 @@ type issueJSON struct {
 			Title string `json:"title"`
 		} `json:"nodes"`
 	} `json:"attachments"`
+	Relations struct {
+		Nodes []struct {
+			Type         string `json:"type"`
+			RelatedIssue struct {
+				Identifier string `json:"identifier"`
+				Title      string `json:"title"`
+			} `json:"relatedIssue"`
+		} `json:"nodes"`
+	} `json:"relations"`
 }
 
 // ParseIdentifier splits "MIR-42" into ("MIR", 42).
@@ -533,7 +593,14 @@ func (c *Client) FetchPublicIssues(ctx context.Context, teamKey string) ([]*Issu
 		return nil, err
 	}
 
+	// Fetch recently cancelled/duplicate issues (last 90 days)
+	cancelled, err := c.fetchRecentlyCancelledPublicIssues(ctx, teamKey)
+	if err != nil {
+		return nil, err
+	}
+
 	all = append(open, done...)
+	all = append(all, cancelled...)
 	SortByProgress(all)
 
 	return all, nil
@@ -542,7 +609,7 @@ func (c *Client) FetchPublicIssues(ctx context.Context, teamKey string) ([]*Issu
 func (c *Client) fetchRecentlyDonePublicIssues(ctx context.Context, teamKey string) ([]*Issue, error) {
 	var all []*Issue
 	var cursor *string
-	since := time.Now().AddDate(0, 0, -90).Format(time.RFC3339)
+	since := time.Now().AddDate(0, 0, -30).Format(time.RFC3339)
 
 	for {
 		vars := map[string]any{
@@ -570,6 +637,52 @@ func (c *Client) fetchRecentlyDonePublicIssues(ctx context.Context, teamKey stri
 		}
 		if err := json.Unmarshal(data, &resp); err != nil {
 			return nil, fmt.Errorf("decode recently done issues: %w", err)
+		}
+
+		for i := range resp.Issues.Nodes {
+			all = append(all, resp.Issues.Nodes[i].toIssue())
+		}
+
+		if !resp.Issues.PageInfo.HasNextPage {
+			break
+		}
+		cursor = &resp.Issues.PageInfo.EndCursor
+	}
+
+	return all, nil
+}
+
+func (c *Client) fetchRecentlyCancelledPublicIssues(ctx context.Context, teamKey string) ([]*Issue, error) {
+	var all []*Issue
+	var cursor *string
+	since := time.Now().AddDate(0, 0, -30).Format(time.RFC3339)
+
+	for {
+		vars := map[string]any{
+			"teamKey":   teamKey,
+			"labelName": "public",
+			"since":     since,
+		}
+		if cursor != nil {
+			vars["cursor"] = *cursor
+		}
+
+		data, err := c.do(ctx, recentlyCancelledPublicIssuesQuery, vars)
+		if err != nil {
+			return nil, err
+		}
+
+		var resp struct {
+			Issues struct {
+				Nodes    []issueJSON `json:"nodes"`
+				PageInfo struct {
+					HasNextPage bool   `json:"hasNextPage"`
+					EndCursor   string `json:"endCursor"`
+				} `json:"pageInfo"`
+			} `json:"issues"`
+		}
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return nil, fmt.Errorf("decode recently cancelled issues: %w", err)
 		}
 
 		for i := range resp.Issues.Nodes {
@@ -716,6 +829,14 @@ func (j *issueJSON) toIssue() *Issue {
 	for i, n := range j.Attachments.Nodes {
 		attachments[i] = Attachment{URL: n.URL, Title: n.Title}
 	}
+	relations := make([]Relation, len(j.Relations.Nodes))
+	for i, n := range j.Relations.Nodes {
+		relations[i] = Relation{
+			Type:              n.Type,
+			RelatedIdentifier: n.RelatedIssue.Identifier,
+			RelatedTitle:      n.RelatedIssue.Title,
+		}
+	}
 	var creator Creator
 	if j.Creator != nil {
 		creator = Creator{DisplayName: j.Creator.DisplayName, AvatarURL: j.Creator.AvatarURL}
@@ -729,6 +850,7 @@ func (j *issueJSON) toIssue() *Issue {
 		Priority:    j.Priority,
 		Labels:      labels,
 		Attachments: attachments,
+		Relations:   relations,
 		URL:         j.URL,
 		CreatedAt:   j.CreatedAt,
 		UpdatedAt:   j.UpdatedAt,

@@ -16,10 +16,17 @@ type Issue struct {
 	Priority    int
 	Labels      []Label
 	Attachments []Attachment
+	Relations   []Relation
 	URL       string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Creator   Creator
+}
+
+type Relation struct {
+	Type               string
+	RelatedIdentifier  string
+	RelatedTitle       string
 }
 
 type Creator struct {
@@ -106,6 +113,15 @@ func (i *Issue) IsOpen() bool {
 		return false
 	}
 	return true
+}
+
+func (i *Issue) DuplicateOf() *Relation {
+	for idx := range i.Relations {
+		if i.Relations[idx].Type == "duplicate" {
+			return &i.Relations[idx]
+		}
+	}
+	return nil
 }
 
 func (i *Issue) HasLabel(name string) bool {

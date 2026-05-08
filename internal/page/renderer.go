@@ -97,25 +97,12 @@ func (r *Renderer) RenderStubPage(w io.Writer, identifier string) error {
 }
 
 type issuesPageData struct {
-	Issues   []*linearapi.Issue
-	Statuses []string
-	TeamKey  string
+	TeamKey string
 }
 
-func (r *Renderer) RenderIssuesPage(w io.Writer, issues []*linearapi.Issue) error {
-	seen := make(map[string]bool)
-	var statuses []string
-	for _, issue := range issues {
-		display := issue.State.DisplayName()
-		if !seen[display] {
-			seen[display] = true
-			statuses = append(statuses, display)
-		}
-	}
+func (r *Renderer) RenderIssuesPage(w io.Writer) error {
 	return r.templates.ExecuteTemplate(w, "issues.html", issuesPageData{
-		Issues:   issues,
-		Statuses: statuses,
-		TeamKey:  r.teamKey,
+		TeamKey: r.teamKey,
 	})
 }
 

@@ -380,11 +380,47 @@ main {
   letter-spacing: 0.02em;
 }
 
-.issues-empty {
+.issues-empty,
+.issues-error {
   text-align: center;
   padding: 3rem 0;
   color: var(--color-text-secondary);
   font-size: 1rem;
+}
+
+.issues-error a {
+  color: var(--color-accent);
+}
+
+.issues-item-skeleton {
+  height: 5.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.issues-item-skeleton::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-border-subtle) 50%,
+    transparent 100%
+  );
+  animation: issues-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes issues-skeleton-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .issues-item-skeleton::before {
+    animation: none;
+    background: var(--color-border-subtle);
+  }
 }
 
 /* ── Issue Page ──────────────────────────────────────── */

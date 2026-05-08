@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -17,6 +18,43 @@ import (
 	"miren.dev/linear-issue-bridge/internal/linearapi"
 	"miren.dev/linear-issue-bridge/internal/page"
 )
+
+type issueListItem struct {
+	Identifier     string `json:"identifier"`
+	Title          string `json:"title"`
+	Status         string `json:"status"`
+	StatusColor    string `json:"statusColor"`
+	UpdatedAtISO   string `json:"updatedAtIso"`
+	UpdatedDisplay string `json:"updatedDisplay"`
+}
+
+type issuesAPIResponse struct {
+	Issues   []issueListItem `json:"issues"`
+	Statuses []string        `json:"statuses"`
+	Stale    bool            `json:"stale,omitempty"`
+}
+
+func buildIssuesResponse(issues []*linearapi.Issue, stale bool) issuesAPIResponse {
+	seen := make(map[string]bool)
+	var statuses []string
+	items := make([]issueListItem, 0, len(issues))
+	for _, issue := range issues {
+		display := issue.State.DisplayName()
+		if !seen[display] {
+			seen[display] = true
+			statuses = append(statuses, display)
+		}
+		items = append(items, issueListItem{
+			Identifier:     issue.Identifier,
+			Title:          issue.Title,
+			Status:         display,
+			StatusColor:    issue.State.DisplayColor(),
+			UpdatedAtISO:   issue.UpdatedAt.Format("2006-01-02"),
+			UpdatedDisplay: issue.UpdatedAt.Format("Jan 2, 2006"),
+		})
+	}
+	return issuesAPIResponse{Issues: items, Statuses: statuses, Stale: stale}
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -99,19 +137,32 @@ func run() error {
 	})
 
 	mux.HandleFunc("GET /issues", func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		if err := renderer.RenderIssuesPage(w); err != nil {
+			slog.Error("render issues", "error", err)
+		}
+	})
+
+	mux.HandleFunc("GET /api/issues", func(w http.ResponseWriter, r *http.Request) {
+		// Outer handler timeout deliberately exceeds the inner http client
+		// timeout (10s in linearapi.NewClient), so a slow upstream call fails
+		// with a real error before the request context cancels out from under it.
+		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 		defer cancel()
 
 		issues, err := issueCache.GetPublicIssues(ctx, teamKey)
 		if err != nil {
-			slog.Error("fetch public issues", "error", err)
+			slog.Warn("fetch public issues, attempting stale fallback", "error", err)
+			if cached, _, ok := issueCache.PeekPublicIssues(teamKey); ok {
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				_ = json.NewEncoder(w).Encode(buildIssuesResponse(cached, true))
+				return
+			}
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
-		if err := renderer.RenderIssuesPage(w, issues); err != nil {
-			slog.Error("render issues", "error", err)
-		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(buildIssuesResponse(issues, false))
 	})
 
 	mux.HandleFunc("GET /suggest", func(w http.ResponseWriter, r *http.Request) {
@@ -210,7 +261,7 @@ func run() error {
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 		defer cancel()
 
 		issue, err := issueCache.Get(ctx, identifier)

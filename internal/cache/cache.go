@@ -102,3 +102,16 @@ func (c *Cache) GetPublicIssues(ctx context.Context, teamKey string) ([]*lineara
 
 	return issues, nil
 }
+
+// PeekPublicIssues returns whatever is cached for teamKey, regardless of TTL.
+// ok is false if nothing has ever been cached. Use this for stale-while-error
+// fallbacks when GetPublicIssues fails.
+func (c *Cache) PeekPublicIssues(teamKey string) (issues []*linearapi.Issue, fetchedAt time.Time, ok bool) {
+	c.listMu.RLock()
+	defer c.listMu.RUnlock()
+	e, ok := c.listEntries[teamKey]
+	if !ok {
+		return nil, time.Time{}, false
+	}
+	return e.issues, e.fetchedAt, true
+}

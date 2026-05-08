@@ -7,7 +7,7 @@
 <body class="page-issues">
   {{template "header"}}
   <main>
-    <div class="issues-list">
+    <div class="issues-list" data-state="loading">
       <div class="issues-header">
         <h1>Issues</h1>
         <a href="/suggest" class="suggest-link">
@@ -15,58 +15,154 @@
           Submit an issue
         </a>
       </div>
-      <p class="issues-count"></p>
-      {{if .Issues}}
-        <div class="issues-filters">
-          <button class="issues-filter active" data-filter="all">All</button>
-          {{range .Statuses}}
-            <button class="issues-filter" data-filter="{{.}}">{{.}}</button>
-          {{end}}
-        </div>
-        <ul class="issues">
-          {{range .Issues}}
-            <li class="issues-item" data-status="{{.State.DisplayName}}">
-              <a href="/{{.Identifier}}" class="issues-item-link">
-                <div class="issues-item-header">
-                  <span class="issues-item-id">{{.Identifier}}</span>
-                  <span class="status" style="color: {{.State.DisplayColor}}; background: {{.State.DisplayColor}}1a;">{{.State.DisplayName}}</span>
-                </div>
-                <span class="issues-item-title">{{.Title}}</span>
-                <time class="issues-item-date" datetime="{{.UpdatedAt.Format "2006-01-02"}}">Updated {{formatDate .UpdatedAt}}</time>
-              </a>
-            </li>
-          {{end}}
-        </ul>
-        <p class="issues-empty" style="display: none;">No issues match this filter.</p>
-        <script>
+      <p class="issues-count" aria-live="polite">Loading…</p>
+      <div class="issues-filters" hidden></div>
+      <ul class="issues issues-skeleton" aria-hidden="true">
+        <li class="issues-item issues-item-skeleton"></li>
+        <li class="issues-item issues-item-skeleton"></li>
+        <li class="issues-item issues-item-skeleton"></li>
+        <li class="issues-item issues-item-skeleton"></li>
+      </ul>
+      <ul class="issues issues-data" hidden></ul>
+      <p class="issues-empty" hidden>No open public issues right now.</p>
+      <p class="issues-error" hidden>Couldn't load issues. <a href="/issues">Try again</a>.</p>
+      <script>
+        (function() {
+          var root = document.querySelector('.issues-list');
+          var skeleton = root.querySelector('.issues-skeleton');
+          var list = root.querySelector('.issues-data');
+          var filters = root.querySelector('.issues-filters');
+          var count = root.querySelector('.issues-count');
+          var empty = root.querySelector('.issues-empty');
+          var errEl = root.querySelector('.issues-error');
+
+          var currentFilter = 'all';
+          var allItems = [];
+
+          function setStatusPill(span, status, color) {
+            span.className = 'status';
+            span.style.color = color;
+            span.style.background = color + '1a';
+            span.textContent = status;
+          }
+
+          function buildItem(issue) {
+            var li = document.createElement('li');
+            li.className = 'issues-item';
+            li.setAttribute('data-status', issue.status);
+
+            var a = document.createElement('a');
+            a.className = 'issues-item-link';
+            a.href = '/' + issue.identifier;
+
+            var header = document.createElement('div');
+            header.className = 'issues-item-header';
+            var id = document.createElement('span');
+            id.className = 'issues-item-id';
+            id.textContent = issue.identifier;
+            var status = document.createElement('span');
+            setStatusPill(status, issue.status, issue.statusColor);
+            header.appendChild(id);
+            header.appendChild(status);
+
+            var title = document.createElement('span');
+            title.className = 'issues-item-title';
+            title.textContent = issue.title;
+
+            var time = document.createElement('time');
+            time.className = 'issues-item-date';
+            time.setAttribute('datetime', issue.updatedAtIso);
+            time.textContent = 'Updated ' + issue.updatedDisplay;
+
+            a.appendChild(header);
+            a.appendChild(title);
+            a.appendChild(time);
+            li.appendChild(a);
+            return li;
+          }
+
           function applyFilter(filter) {
-            var items = document.querySelectorAll('.issues-item');
+            currentFilter = filter;
             var visible = 0;
-            items.forEach(function(item) {
+            allItems.forEach(function(item) {
               var status = item.getAttribute('data-status');
               var show = (filter === 'all') ? status !== 'Done' : status === filter;
               item.style.display = show ? '' : 'none';
               if (show) visible++;
             });
-            document.querySelector('.issues-empty').style.display = visible === 0 ? '' : 'none';
+            if (visible === 0 && allItems.length > 0) {
+              empty.textContent = 'No issues match this filter.';
+              empty.hidden = false;
+            } else {
+              empty.hidden = true;
+            }
             var noun = visible === 1 ? 'issue' : 'issues';
             var label = filter === 'all' ? 'open public' : filter;
-            document.querySelector('.issues-count').textContent = visible + ' ' + label + ' ' + noun;
+            count.textContent = visible + ' ' + label + ' ' + noun;
           }
 
-          document.querySelectorAll('.issues-filter').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-              document.querySelectorAll('.issues-filter').forEach(function(b) { b.classList.remove('active'); });
-              btn.classList.add('active');
-              applyFilter(btn.getAttribute('data-filter'));
+          function renderFilters(statuses) {
+            filters.innerHTML = '';
+            var allBtn = document.createElement('button');
+            allBtn.className = 'issues-filter active';
+            allBtn.setAttribute('data-filter', 'all');
+            allBtn.textContent = 'All';
+            filters.appendChild(allBtn);
+            statuses.forEach(function(s) {
+              var btn = document.createElement('button');
+              btn.className = 'issues-filter';
+              btn.setAttribute('data-filter', s);
+              btn.textContent = s;
+              filters.appendChild(btn);
             });
-          });
+            filters.querySelectorAll('.issues-filter').forEach(function(btn) {
+              btn.addEventListener('click', function() {
+                filters.querySelectorAll('.issues-filter').forEach(function(b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                applyFilter(btn.getAttribute('data-filter'));
+              });
+            });
+            filters.hidden = statuses.length === 0;
+          }
 
-          applyFilter('all');
-        </script>
-      {{else}}
-        <p class="issues-empty">No open public issues right now.</p>
-      {{end}}
+          function render(data) {
+            list.innerHTML = '';
+            allItems = data.issues.map(buildItem);
+            allItems.forEach(function(item) { list.appendChild(item); });
+            renderFilters(data.statuses);
+
+            skeleton.remove();
+            list.hidden = false;
+            root.setAttribute('data-state', 'ready');
+
+            if (allItems.length === 0) {
+              empty.textContent = 'No open public issues right now.';
+              empty.hidden = false;
+              count.textContent = '';
+              return;
+            }
+            applyFilter('all');
+          }
+
+          function showError() {
+            skeleton.remove();
+            count.textContent = '';
+            errEl.hidden = false;
+            root.setAttribute('data-state', 'error');
+          }
+
+          fetch('/api/issues', { headers: { 'Accept': 'application/json' } })
+            .then(function(res) {
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              return res.json();
+            })
+            .then(render)
+            .catch(function(err) {
+              console.error('failed to load issues', err);
+              showError();
+            });
+        })();
+      </script>
     </div>
   </main>
   {{template "footer"}}

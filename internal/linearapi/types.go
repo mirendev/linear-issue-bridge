@@ -80,25 +80,8 @@ func (s State) DisplayColor() string {
 	}
 }
 
-var stateOrder = map[string]int{
-	"In Progress": 0,
-	"Open":        1,
-	"Done":        2,
-}
-
-func (i *Issue) stateRank() int {
-	if rank, ok := stateOrder[i.State.DisplayName()]; ok {
-		return rank
-	}
-	return 3
-}
-
-func SortByProgress(issues []*Issue) {
+func SortByUpdatedDesc(issues []*Issue) {
 	sort.SliceStable(issues, func(i, j int) bool {
-		ri, rj := issues[i].stateRank(), issues[j].stateRank()
-		if ri != rj {
-			return ri < rj
-		}
 		return issues[i].UpdatedAt.After(issues[j].UpdatedAt)
 	})
 }

@@ -601,7 +601,7 @@ func (c *Client) FetchPublicIssues(ctx context.Context, teamKey string) ([]*Issu
 
 	all = append(open, done...)
 	all = append(all, cancelled...)
-	SortByProgress(all)
+	SortByUpdatedDesc(all)
 
 	return all, nil
 }

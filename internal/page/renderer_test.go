@@ -78,11 +78,10 @@ func TestRenderIssuePage(t *testing.T) {
 		"github.com/mirendev/linear-issue-bridge/pull/1",
 		"feat: add PR links",
 		"github-pr-link",
-		// OpenGraph / Twitter card meta
+		// OpenGraph / Twitter card meta (text-only, no og:image by design)
 		`<meta property="og:title" content="MIR-42: Test Issue Title">`,
 		`<meta property="og:type" content="article">`,
 		`<meta property="og:url" content="https://linear.miren.garden/MIR-42">`,
-		`<meta property="og:image" content="https://linear.miren.garden/static/og-image.png">`,
 		`<meta property="og:description" content="This is a bold description.">`,
 		`<meta name="twitter:card" content="summary">`,
 	}
@@ -91,6 +90,11 @@ func TestRenderIssuePage(t *testing.T) {
 		if !strings.Contains(html, check) {
 			t.Errorf("output missing %q", check)
 		}
+	}
+
+	// og:image is intentionally omitted: big-card platforms crop it badly.
+	if strings.Contains(html, "og:image") {
+		t.Error("output unexpectedly contains og:image")
 	}
 }
 

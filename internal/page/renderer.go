@@ -76,12 +76,17 @@ func NewRenderer(teamKey string, fathomSiteID string, baseURL string) (*Renderer
 }
 
 // Meta carries OpenGraph / Twitter card values for a page's <head>.
+//
+// We deliberately omit og:image. The big-card platforms (Bluesky, Facebook,
+// LinkedIn, Slack) always render a wide 1.91:1 banner and crop whatever image
+// we give them, and none of them honor twitter:card=summary, so any logo or
+// icon ends up stretched or sliced. A text-only card (title + description +
+// domain) reads cleanly everywhere instead.
 type Meta struct {
 	Title       string
 	Description string
 	URL         string
 	Type        string // "website" or "article"
-	ImageURL    string
 	SiteName    string
 }
 
@@ -93,7 +98,6 @@ func (r *Renderer) meta(path, title, desc, ogType string) Meta {
 		Description: desc,
 		URL:         r.baseURL + path,
 		Type:        ogType,
-		ImageURL:    r.baseURL + "/static/og-image.png",
 		SiteName:    "Miren Issues",
 	}
 }

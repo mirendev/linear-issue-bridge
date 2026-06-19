@@ -11,7 +11,9 @@ import (
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer/html"
+	"github.com/yuin/goldmark/util"
 
 	"miren.dev/linear-issue-bridge/internal/linearapi"
 )
@@ -22,23 +24,35 @@ var templateFS embed.FS
 //go:embed static/*
 var staticFS embed.FS
 
-var md = goldmark.New(
-	goldmark.WithExtensions(
-		extension.GFM,
-	),
-	goldmark.WithRendererOptions(
-		html.WithUnsafe(),
-	),
-)
+// newMarkdown builds a goldmark instance that rewrites Linear's authenticated
+// cross-reference links into public bridge / GitHub links as it renders.
+func newMarkdown(teamKey string) goldmark.Markdown {
+	return goldmark.New(
+		goldmark.WithExtensions(
+			extension.GFM,
+		),
+		goldmark.WithParserOptions(
+			parser.WithASTTransformers(
+				util.Prioritized(&linkRewriter{teamKey: teamKey}, 100),
+			),
+		),
+		goldmark.WithRendererOptions(
+			html.WithUnsafe(),
+		),
+	)
+}
 
 type Renderer struct {
 	templates *template.Template
 	teamKey   string
+	md        goldmark.Markdown
 }
 
 func NewRenderer(teamKey string, fathomSiteID string) (*Renderer, error) {
+	md := newMarkdown(teamKey)
+
 	funcMap := template.FuncMap{
-		"markdown":     renderMarkdown,
+		"markdown":     func(src string) template.HTML { return renderMarkdown(md, src) },
 		"fathomSiteID": func() string { return fathomSiteID },
 		"formatDate": func(t time.Time) string {
 			return t.Format("Jan 2, 2006")
@@ -53,6 +67,7 @@ func NewRenderer(teamKey string, fathomSiteID string) (*Renderer, error) {
 	return &Renderer{
 		templates: tmpl,
 		teamKey:   teamKey,
+		md:        md,
 	}, nil
 }
 
@@ -74,7 +89,7 @@ type issuePageData struct {
 }
 
 func (r *Renderer) RenderIssuePage(w io.Writer, issue *linearapi.Issue) error {
-	descHTML := renderMarkdown(issue.Description)
+	descHTML := renderMarkdown(r.md, issue.Description)
 	return r.templates.ExecuteTemplate(w, "issue.html", issuePageData{
 		Issue:           issue,
 		DescriptionHTML: descHTML,
@@ -123,7 +138,7 @@ func (r *Renderer) RenderNotFound(w io.Writer) error {
 	return r.templates.ExecuteTemplate(w, "notfound.html", nil)
 }
 
-func renderMarkdown(src string) template.HTML {
+func renderMarkdown(md goldmark.Markdown, src string) template.HTML {
 	var buf bytes.Buffer
 	if err := md.Convert([]byte(src), &buf); err != nil {
 		return template.HTML("<p>" + template.HTMLEscapeString(src) + "</p>")

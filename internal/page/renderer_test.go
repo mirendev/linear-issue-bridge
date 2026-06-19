@@ -151,6 +151,7 @@ func TestStaticHandlerContentType(t *testing.T) {
 }
 
 func TestRenderMarkdown(t *testing.T) {
+	md := newMarkdown("MIR")
 	tests := []struct {
 		name     string
 		input    string
@@ -163,7 +164,7 @@ func TestRenderMarkdown(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := string(renderMarkdown(tt.input))
+			result := string(renderMarkdown(md, tt.input))
 			if !strings.Contains(result, tt.contains) {
 				t.Errorf("renderMarkdown(%q) = %q, missing %q", tt.input, result, tt.contains)
 			}

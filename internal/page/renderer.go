@@ -7,6 +7,8 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/yuin/goldmark"
@@ -45,10 +47,11 @@ func newMarkdown(teamKey string) goldmark.Markdown {
 type Renderer struct {
 	templates *template.Template
 	teamKey   string
+	baseURL   string
 	md        goldmark.Markdown
 }
 
-func NewRenderer(teamKey string, fathomSiteID string) (*Renderer, error) {
+func NewRenderer(teamKey string, fathomSiteID string, baseURL string) (*Renderer, error) {
 	md := newMarkdown(teamKey)
 
 	funcMap := template.FuncMap{
@@ -67,8 +70,32 @@ func NewRenderer(teamKey string, fathomSiteID string) (*Renderer, error) {
 	return &Renderer{
 		templates: tmpl,
 		teamKey:   teamKey,
+		baseURL:   strings.TrimRight(baseURL, "/"),
 		md:        md,
 	}, nil
+}
+
+// Meta carries OpenGraph / Twitter card values for a page's <head>.
+type Meta struct {
+	Title       string
+	Description string
+	URL         string
+	Type        string // "website" or "article"
+	ImageURL    string
+	SiteName    string
+}
+
+// meta builds the OG metadata shared by every page. path is the absolute path
+// (e.g. "/MIR-42"); title/desc/ogType vary per page.
+func (r *Renderer) meta(path, title, desc, ogType string) Meta {
+	return Meta{
+		Title:       title,
+		Description: desc,
+		URL:         r.baseURL + path,
+		Type:        ogType,
+		ImageURL:    r.baseURL + "/static/og-image.png",
+		SiteName:    "Miren Issues",
+	}
 }
 
 func (r *Renderer) StaticHandler() http.Handler {
@@ -76,8 +103,14 @@ func (r *Renderer) StaticHandler() http.Handler {
 	return http.FileServerFS(sub)
 }
 
+type pageData struct {
+	Meta Meta
+}
+
 func (r *Renderer) RenderIndexPage(w io.Writer) error {
-	return r.templates.ExecuteTemplate(w, "index.html", nil)
+	return r.templates.ExecuteTemplate(w, "index.html", pageData{
+		Meta: r.meta("/", "Miren Issues", "Public issues for Miren, straight from the source.", "website"),
+	})
 }
 
 type issuePageData struct {
@@ -86,6 +119,7 @@ type issuePageData struct {
 	GitHubPRs       []linearapi.Attachment
 	DuplicateOf     *linearapi.Relation
 	TeamKey         string
+	Meta            Meta
 }
 
 func (r *Renderer) RenderIssuePage(w io.Writer, issue *linearapi.Issue) error {
@@ -96,28 +130,38 @@ func (r *Renderer) RenderIssuePage(w io.Writer, issue *linearapi.Issue) error {
 		GitHubPRs:       issue.GitHubPRs(),
 		DuplicateOf:     issue.DuplicateOf(),
 		TeamKey:         r.teamKey,
+		Meta: r.meta(
+			"/"+issue.Identifier,
+			issue.Identifier+": "+issue.Title,
+			summarize(issue.Description, 200),
+			"article",
+		),
 	})
 }
 
 type stubPageData struct {
 	Identifier string
 	TeamKey    string
+	Meta       Meta
 }
 
 func (r *Renderer) RenderStubPage(w io.Writer, identifier string) error {
 	return r.templates.ExecuteTemplate(w, "stub.html", stubPageData{
 		Identifier: identifier,
 		TeamKey:    r.teamKey,
+		Meta:       r.meta("/"+identifier, identifier+" — Miren", "This issue isn't public yet, or doesn't exist.", "website"),
 	})
 }
 
 type issuesPageData struct {
 	TeamKey string
+	Meta    Meta
 }
 
 func (r *Renderer) RenderIssuesPage(w io.Writer) error {
 	return r.templates.ExecuteTemplate(w, "issues.html", issuesPageData{
 		TeamKey: r.teamKey,
+		Meta:    r.meta("/issues", "Issues — Miren", "Browse public issues for Miren.", "website"),
 	})
 }
 
@@ -128,15 +172,50 @@ type SuggestPageData struct {
 	Error       string
 	Success     bool
 	Identifier  string
+	Meta        Meta
 }
 
 func (r *Renderer) RenderSuggestPage(w io.Writer, data SuggestPageData) error {
+	data.Meta = r.meta("/suggest", "Submit an Issue — Miren", "Suggest an issue to the Miren team.", "website")
 	return r.templates.ExecuteTemplate(w, "suggest.html", data)
 }
 
 func (r *Renderer) RenderNotFound(w io.Writer) error {
-	return r.templates.ExecuteTemplate(w, "notfound.html", nil)
+	return r.templates.ExecuteTemplate(w, "notfound.html", pageData{
+		Meta: r.meta("/", "Not Found — Miren", "This page couldn't be found.", "website"),
+	})
 }
+
+// summarize turns issue-description markdown into a plain-text snippet suitable
+// for an og:description: links/images collapse to their text, formatting and
+// block markers are stripped, whitespace is collapsed, and the result is cut to
+// roughly max characters on a word boundary.
+func summarize(src string, max int) string {
+	s := src
+	s = mdImageRe.ReplaceAllString(s, "$1")
+	s = mdLinkRe.ReplaceAllString(s, "$1")
+	s = mdBlockRe.ReplaceAllString(s, "")
+	s = mdInlineRe.ReplaceAllString(s, "")
+	s = strings.Join(strings.Fields(s), " ")
+
+	if len(s) <= max {
+		return s
+	}
+	cut := s[:max]
+	if i := strings.LastIndex(cut, " "); i > 0 {
+		cut = cut[:i]
+	}
+	return strings.TrimRight(cut, " .,;:") + "…"
+}
+
+var (
+	mdImageRe = regexp.MustCompile(`!\[([^\]]*)\]\([^)]*\)`)
+	mdLinkRe  = regexp.MustCompile(`\[([^\]]*)\]\([^)]*\)`)
+	// Drop line-leading block markers (headings, blockquotes, list bullets).
+	mdBlockRe = regexp.MustCompile(`(?m)^\s*(#{1,6}|>+|[-+*]|\d+\.)\s+`)
+	// Drop inline emphasis/code markers, leaving their text.
+	mdInlineRe = regexp.MustCompile("[`*_~]")
+)
 
 func renderMarkdown(md goldmark.Markdown, src string) template.HTML {
 	var buf bytes.Buffer

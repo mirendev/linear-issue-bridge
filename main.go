@@ -88,7 +88,12 @@ func run() error {
 
 	fathomSiteID := os.Getenv("FATHOM_SITE_ID")
 
-	renderer, err := page.NewRenderer(teamKey, fathomSiteID)
+	baseURL := os.Getenv("BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://linear.miren.garden"
+	}
+
+	renderer, err := page.NewRenderer(teamKey, fathomSiteID, baseURL)
 	if err != nil {
 		return fmt.Errorf("initialize renderer: %w", err)
 	}

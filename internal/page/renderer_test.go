@@ -12,7 +12,7 @@ import (
 )
 
 func TestRenderIndexPage(t *testing.T) {
-	r, err := NewRenderer("MIR", "")
+	r, err := NewRenderer("MIR", "", "https://linear.miren.garden")
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestRenderIndexPage(t *testing.T) {
 }
 
 func TestRenderIssuePage(t *testing.T) {
-	r, err := NewRenderer("MIR", "")
+	r, err := NewRenderer("MIR", "", "https://linear.miren.garden")
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -78,6 +78,13 @@ func TestRenderIssuePage(t *testing.T) {
 		"github.com/mirendev/linear-issue-bridge/pull/1",
 		"feat: add PR links",
 		"github-pr-link",
+		// OpenGraph / Twitter card meta
+		`<meta property="og:title" content="MIR-42: Test Issue Title">`,
+		`<meta property="og:type" content="article">`,
+		`<meta property="og:url" content="https://linear.miren.garden/MIR-42">`,
+		`<meta property="og:image" content="https://linear.miren.garden/static/og-image.png">`,
+		`<meta property="og:description" content="This is a bold description.">`,
+		`<meta name="twitter:card" content="summary">`,
 	}
 
 	for _, check := range checks {
@@ -88,7 +95,7 @@ func TestRenderIssuePage(t *testing.T) {
 }
 
 func TestRenderStubPage(t *testing.T) {
-	r, err := NewRenderer("MIR", "")
+	r, err := NewRenderer("MIR", "", "https://linear.miren.garden")
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -108,7 +115,7 @@ func TestRenderStubPage(t *testing.T) {
 }
 
 func TestRenderNotFound(t *testing.T) {
-	r, err := NewRenderer("MIR", "")
+	r, err := NewRenderer("MIR", "", "https://linear.miren.garden")
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}
@@ -125,7 +132,7 @@ func TestRenderNotFound(t *testing.T) {
 }
 
 func TestStaticHandlerContentType(t *testing.T) {
-	r, err := NewRenderer("MIR", "")
+	r, err := NewRenderer("MIR", "", "https://linear.miren.garden")
 	if err != nil {
 		t.Fatalf("NewRenderer: %v", err)
 	}

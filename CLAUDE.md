@@ -52,6 +52,7 @@ Miren remembers env vars and secrets from previous deploys, so you only need to 
 | `LINEAR_TEAM_KEY` | Issue prefix, e.g. `MIR` |
 | `GITHUB_WEBHOOK_SECRET` | Enables `POST /webhook/github`; GitHub HMAC-SHA256 secret |
 | `FATHOM_SITE_ID` | Fathom Analytics site ID; omit to disable tracking |
+| `BASE_URL` | Public origin for absolute OpenGraph URLs; defaults to `https://linear.miren.garden` |
 
 ## Code Style
 

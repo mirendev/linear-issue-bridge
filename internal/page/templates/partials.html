@@ -5,6 +5,19 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="icon" type="image/png" href="/static/favicon.png">
   <link rel="stylesheet" href="/static/style.css">
+  {{with .}}
+  {{if .Description}}<meta name="description" content="{{.Description}}">{{end}}
+  <meta property="og:title" content="{{.Title}}">
+  {{if .Description}}<meta property="og:description" content="{{.Description}}">{{end}}
+  <meta property="og:type" content="{{.Type}}">
+  <meta property="og:url" content="{{.URL}}">
+  <meta property="og:site_name" content="{{.SiteName}}">
+  {{if .ImageURL}}<meta property="og:image" content="{{.ImageURL}}">{{end}}
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="{{.Title}}">
+  {{if .Description}}<meta name="twitter:description" content="{{.Description}}">{{end}}
+  {{if .ImageURL}}<meta name="twitter:image" content="{{.ImageURL}}">{{end}}
+  {{end}}
   {{if fathomSiteID}}<script src="https://cdn.usefathom.com/script.js" data-site="{{fathomSiteID}}" defer></script>{{end}}
 {{end}}
 

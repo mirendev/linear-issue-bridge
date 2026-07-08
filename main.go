@@ -284,7 +284,7 @@ func run() error {
 			return
 		}
 
-		if !issue.HasLabel("public") {
+		if !issue.IsPublic() {
 			w.WriteHeader(http.StatusOK)
 			if err := renderer.RenderStubPage(w, identifier); err != nil {
 				slog.Error("render stub", "error", err)

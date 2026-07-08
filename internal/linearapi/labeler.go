@@ -38,6 +38,11 @@ func (l *PublicLabeler) EnsurePublicLabel(ctx context.Context, identifier string
 		return nil
 	}
 
+	if issue.HasLabel("security") {
+		slog.Info("issue has security label, skipping", "identifier", identifier)
+		return nil
+	}
+
 	if issue.HasLabel("public") {
 		slog.Info("issue already has public label", "identifier", identifier)
 		return nil

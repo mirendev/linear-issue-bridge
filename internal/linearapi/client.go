@@ -601,6 +601,18 @@ func (c *Client) FetchPublicIssues(ctx context.Context, teamKey string) ([]*Issu
 
 	all = append(open, done...)
 	all = append(all, cancelled...)
+
+	// Belt-and-suspenders: never list an issue the security override excludes,
+	// even if it slipped through carrying the "public" label. Mirrors the
+	// serving gate so the two surfaces agree on what's public.
+	public := all[:0]
+	for _, issue := range all {
+		if issue.IsPublic() {
+			public = append(public, issue)
+		}
+	}
+	all = public
+
 	SortByUpdatedDesc(all)
 
 	return all, nil

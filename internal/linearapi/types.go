@@ -116,6 +116,16 @@ func (i *Issue) HasLabel(name string) bool {
 	return false
 }
 
+// IsPublic reports whether the issue may be exposed on the public bridge.
+//
+// The "security" label is a hard override: it always wins over "public", so a
+// sensitive issue can never leak, even if it also carries the public label
+// (added manually or by the auto-labeler). This is the single source of truth
+// for public-ness; the serving gate and the issues list both defer to it.
+func (i *Issue) IsPublic() bool {
+	return i.HasLabel("public") && !i.HasLabel("security")
+}
+
 var githubPRPattern = regexp.MustCompile(`^https://github\.com/.+/pull/\d+`)
 
 func (i *Issue) GitHubPRs() []Attachment {

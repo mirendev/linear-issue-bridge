@@ -95,7 +95,12 @@ func (s *Service) Board(ctx context.Context) (Board, bool, error) {
 	s.mu.Lock()
 	s.inflight = nil
 	if err != nil {
-		s.lastFail = time.Now()
+		// Only a real upstream failure opens the backoff. If this caller's own
+		// context is done, the request was abandoned client-side and stalling
+		// every other reader for 30s over it would be a self-inflicted outage.
+		if ctx.Err() == nil {
+			s.lastFail = time.Now()
+		}
 	} else {
 		s.board = &board
 		s.fetchedAt = time.Now()

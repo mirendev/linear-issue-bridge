@@ -189,3 +189,22 @@ func TestBoardHandlerNeverEmitsNullArrays(t *testing.T) {
 		}
 	}
 }
+
+// The regression CodeRabbit caught: WithVotes was the only thing turning nil
+// columns into empty slices, and it runs only when a vote store is configured.
+// A bridge with no REDIS_URL therefore served empty columns as null.
+func TestBoardHandlerNormalizesColumnsWithoutAVoteStore(t *testing.T) {
+	// A fetcher with no issues leaves the issue-fed columns empty.
+	svc := NewService(&emptyFetcher{}, time.Minute)
+	rec := serve(t, svc, nil) // nil vote store: WithVotes never runs
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+		t.Fatalf("decode: %v\nbody: %s", err, rec.Body.String())
+	}
+	for _, col := range []string{"exploring", "upNext", "inProgress", "shipped"} {
+		if string(raw[col]) == "null" {
+			t.Errorf("column %q serialised as null with no vote store, want []", col)
+		}
+	}
+}

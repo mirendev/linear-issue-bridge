@@ -166,3 +166,35 @@ func TestOpenIDsExcludesShipped(t *testing.T) {
 		}
 	}
 }
+
+// A fetcher that returns nothing, so every column comes back empty.
+type emptyFetcher struct{}
+
+func (emptyFetcher) FetchRoadmapProjects(context.Context, []string) ([]*linearapi.Project, error) {
+	return nil, nil
+}
+func (emptyFetcher) FetchRoadmapIssues(context.Context, []string) ([]*linearapi.Issue, error) {
+	return nil, nil
+}
+
+// A caller that disconnects mid-fetch must not open the shared backoff for
+// everyone else.
+func TestServiceIgnoresCallerCancellationForBackoff(t *testing.T) {
+	f := &fakeFetcher{release: make(chan struct{})}
+	s := NewService(f, time.Minute)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		cancel()
+		close(f.release)
+	}()
+	_, _, _ = s.Board(ctx)
+
+	s.mu.Lock()
+	stalled := !s.lastFail.IsZero()
+	s.mu.Unlock()
+	if stalled {
+		t.Error("an abandoned request opened the failure backoff for everyone")
+	}
+}

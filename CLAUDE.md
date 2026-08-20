@@ -33,6 +33,9 @@ Then visit `http://localhost:8080/MIR-42`
 - `internal/cache/` -- In-memory TTL cache wrapping the Linear client
 - `internal/page/` -- HTML template rendering + static assets
 - `internal/github/` -- GitHub webhook handling (Phase 2) + MIR-\d+ scanner
+- `internal/roadmap/` -- Public roadmap: Linear visibility policy, bucketing, and its two endpoints
+- `internal/votes/` -- Roadmap heart counts + rate limiting, backed by Valkey
+- `internal/workloadauth/` -- Verifies Miren workload identity tokens on the vote endpoint
 
 ## Deployment
 
@@ -53,6 +56,10 @@ Miren remembers env vars and secrets from previous deploys, so you only need to 
 | `GITHUB_WEBHOOK_SECRET` | Enables `POST /webhook/github`; GitHub HMAC-SHA256 secret |
 | `FATHOM_SITE_ID` | Fathom Analytics site ID; omit to disable tracking |
 | `BASE_URL` | Public origin for absolute OpenGraph URLs; defaults to `https://linear.miren.garden` |
+| `REDIS_URL` / `VALKEY_URL` | Roadmap vote counts and rate limiting; omit and voting is inert |
+| `ROADMAP_TRUSTED_ISSUERS` | Comma-separated exact cluster issuer URLs allowed to vote; omit and `POST /api/roadmap/vote` is not mounted |
+| `ROADMAP_VOTE_AUDIENCE` | Audience callers must mint tokens for; defaults to `BASE_URL` |
+| `ROADMAP_REQUIRE_ORGANIZATION` | Optional `organization_id` the caller must match (defence in depth) |
 
 ## Code Style
 

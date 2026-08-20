@@ -39,6 +39,11 @@ func BoardHandler(svc *Service, votes VoteStore) http.HandlerFunc {
 		if votes != nil {
 			board = WithVotes(board, votes.Counts(ctx, allCardIDs(board)))
 		}
+		// Normalise here rather than relying on WithVotes having run. A nil
+		// column marshals to JSON null, and a consumer doing column.map() on
+		// that gets a TypeError instead of an empty list. With no vote store
+		// configured WithVotes never runs, so this is the only guard.
+		board = normalizeColumns(board)
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		// The board is public and cheap to re-fetch; a short shared cache keeps
@@ -48,6 +53,15 @@ func BoardHandler(svc *Service, votes VoteStore) http.HandlerFunc {
 			slog.Error("encode roadmap", "error", err)
 		}
 	}
+}
+
+// normalizeColumns guarantees every column is an array on the wire.
+func normalizeColumns(b Board) Board {
+	b.Exploring = capColumn(b.Exploring)
+	b.UpNext = capColumn(b.UpNext)
+	b.InProgress = capColumn(b.InProgress)
+	b.Shipped = capColumn(b.Shipped)
+	return b
 }
 
 func allCardIDs(b Board) []string {

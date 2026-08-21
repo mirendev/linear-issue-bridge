@@ -1,6 +1,7 @@
 package roadmap
 
 import (
+	"net/url"
 	"regexp"
 	"sort"
 	"strings"
@@ -73,9 +74,18 @@ type Card struct {
 	StatusName  string   `json:"statusName"`
 	Labels      []string `json:"labels"`
 	Release     *string  `json:"release"`
-	DocsURL     *string  `json:"docsUrl"`
-	BlogURL     *string  `json:"blogUrl"`
-	Votes       int      `json:"votes"`
+	Links       []Link   `json:"links"`
+	// DocsURL and BlogURL remain until the website has deployed the generic
+	// links contract. They can then disappear without a flag day.
+	DocsURL *string `json:"docsUrl"`
+	BlogURL *string `json:"blogUrl"`
+	Votes   int     `json:"votes"`
+}
+
+// Link is a titled Linear project resource safe to render on the public card.
+type Link struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
 }
 
 // Board is the finished four-column roadmap.
@@ -179,10 +189,25 @@ func sortByPriority(cards []Card, priorities map[string]int) {
 	})
 }
 
-func findLink(p *linearapi.Project, pattern *regexp.Regexp) *string {
+func projectLinks(p *linearapi.Project) []Link {
+	links := make([]Link, 0, len(p.ExternalLinks))
 	for _, l := range p.ExternalLinks {
-		// Only https links are trusted onto the page.
-		if pattern.MatchString(l.Label) && strings.HasPrefix(l.URL, "https://") {
+		title := strings.TrimSpace(l.Label)
+		rawURL := strings.TrimSpace(l.URL)
+		parsed, err := url.Parse(rawURL)
+		// Untitled links have no useful anchor text, and only https links are
+		// trusted onto the page.
+		if title == "" || err != nil || !strings.EqualFold(parsed.Scheme, "https") || parsed.Hostname() == "" {
+			continue
+		}
+		links = append(links, Link{Title: title, URL: rawURL})
+	}
+	return links
+}
+
+func findLink(links []Link, pattern *regexp.Regexp) *string {
+	for _, l := range links {
+		if pattern.MatchString(l.Title) {
 			url := l.URL
 			return &url
 		}
@@ -199,6 +224,7 @@ var (
 // not display tags, so they never reach the page.
 func projectCard(p *linearapi.Project) Card {
 	display := []string{}
+	links := projectLinks(p)
 	var release *string
 	for _, name := range p.LabelNames() {
 		if containsAny([]string{name}, ProjectLabels) {
@@ -218,8 +244,9 @@ func projectCard(p *linearapi.Project) Card {
 		StatusName:  p.Status.Name,
 		Labels:      display,
 		Release:     release,
-		DocsURL:     findLink(p, docsPattern),
-		BlogURL:     findLink(p, blogPattern),
+		Links:       links,
+		DocsURL:     findLink(links, docsPattern),
+		BlogURL:     findLink(links, blogPattern),
 	}
 }
 
@@ -239,6 +266,7 @@ func issueCard(i *linearapi.Issue) Card {
 		Description: RoadmapSummary(i.Description),
 		StatusName:  i.State.Name,
 		Labels:      display,
+		Links:       []Link{},
 	}
 }
 

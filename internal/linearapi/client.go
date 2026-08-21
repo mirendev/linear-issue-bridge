@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	defaultEndpoint  = "https://api.linear.app/graphql"
-	defaultTokenURL  = "https://api.linear.app/oauth/token"
+	defaultEndpoint   = "https://api.linear.app/graphql"
+	defaultTokenURL   = "https://api.linear.app/oauth/token"
 	tokenExpiryBuffer = 5 * time.Minute
 )
 
@@ -43,8 +43,6 @@ func NewClient(clientID, clientSecret string) *Client {
 		},
 	}
 }
-
-
 
 // SetEndpoint overrides the GraphQL endpoint (useful for testing).
 func (c *Client) SetEndpoint(endpoint string) {
@@ -374,7 +372,7 @@ type issueJSON struct {
 	Priority    int       `json:"priority"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
-	Creator *struct {
+	Creator     *struct {
 		DisplayName string `json:"displayName"`
 		AvatarURL   string `json:"avatarUrl"`
 	} `json:"creator"`

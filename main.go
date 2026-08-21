@@ -17,6 +17,9 @@ import (
 	"miren.dev/linear-issue-bridge/internal/github"
 	"miren.dev/linear-issue-bridge/internal/linearapi"
 	"miren.dev/linear-issue-bridge/internal/page"
+	"miren.dev/linear-issue-bridge/internal/roadmap"
+	"miren.dev/linear-issue-bridge/internal/votes"
+	"miren.dev/linear-issue-bridge/internal/workloadauth"
 )
 
 type issueListItem struct {
@@ -56,6 +59,26 @@ func buildIssuesResponse(issues []*linearapi.Issue, stale bool) issuesAPIRespons
 	return issuesAPIResponse{Issues: items, Statuses: statuses, Stale: stale}
 }
 
+// splitList reads a comma-separated env var, dropping blanks.
+func splitList(v string) []string {
+	var out []string
+	for _, part := range strings.Split(v, ",") {
+		if p := strings.TrimSpace(part); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 func main() {
 	if err := run(); err != nil {
 		slog.Error("fatal", "error", err)
@@ -85,6 +108,23 @@ func run() error {
 		return fmt.Errorf("LINEAR_TEAM_KEY is required")
 	}
 	issueCache := cache.New(client, cache.DefaultTTL)
+	roadmapService := roadmap.NewService(client, roadmap.DefaultTTL)
+
+	// The vote store is optional. Without a Valkey/Redis URL the roadmap still
+	// renders and hearts are simply inert, which is what keeps a missing addon
+	// a degraded feature rather than an outage.
+	voteStore := votes.New(nil)
+	if url := firstNonEmpty(os.Getenv("REDIS_URL"), os.Getenv("VALKEY_URL")); url != "" {
+		be, err := votes.NewRedisBackend(url)
+		if err != nil {
+			return fmt.Errorf("configure vote store: %w", err)
+		}
+		voteStore = votes.New(be)
+		defer func() { _ = voteStore.Close() }()
+		slog.Info("vote store enabled")
+	} else {
+		slog.Info("vote store disabled (no REDIS_URL/VALKEY_URL)")
+	}
 
 	fathomSiteID := os.Getenv("FATHOM_SITE_ID")
 
@@ -169,6 +209,28 @@ func run() error {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(buildIssuesResponse(issues, false))
 	})
+
+	mux.HandleFunc("GET /api/roadmap", roadmap.BoardHandler(roadmapService, voteStore))
+
+	// Voting is a write, so it is mounted only when we can tell who is calling.
+	// A browser cannot hold a workload identity, so the website proxies the
+	// click and proves it is the website; without a verifier configured the
+	// route simply does not exist, rather than existing unauthenticated.
+	if issuers := splitList(os.Getenv("ROADMAP_TRUSTED_ISSUERS")); len(issuers) > 0 {
+		audience := firstNonEmpty(os.Getenv("ROADMAP_VOTE_AUDIENCE"), baseURL)
+		verifier, err := workloadauth.New(workloadauth.Config{
+			TrustedIssuers:      issuers,
+			Audience:            audience,
+			RequireOrganization: os.Getenv("ROADMAP_REQUIRE_ORGANIZATION"),
+		})
+		if err != nil {
+			return fmt.Errorf("configure roadmap vote auth: %w", err)
+		}
+		mux.HandleFunc("POST /api/roadmap/vote", roadmap.VoteHandler(roadmapService, voteStore, verifier))
+		slog.Info("roadmap voting enabled", "audience", audience, "trusted_issuers", issuers)
+	} else {
+		slog.Info("roadmap voting disabled (ROADMAP_TRUSTED_ISSUERS not set)")
+	}
 
 	mux.HandleFunc("GET /suggest", func(w http.ResponseWriter, r *http.Request) {
 		if err := renderer.RenderSuggestPage(w, page.SuggestPageData{}); err != nil {

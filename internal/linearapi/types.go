@@ -17,16 +17,16 @@ type Issue struct {
 	Labels      []Label
 	Attachments []Attachment
 	Relations   []Relation
-	URL       string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Creator   Creator
+	URL         string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Creator     Creator
 }
 
 type Relation struct {
-	Type               string
-	RelatedIdentifier  string
-	RelatedTitle       string
+	Type              string
+	RelatedIdentifier string
+	RelatedTitle      string
 }
 
 type Creator struct {

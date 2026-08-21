@@ -1,1 +1,7 @@
 name = "linear-issue-bridge"
+
+# Roadmap heart counts and the rate limiter that guards writing them. Injects
+# REDIS_URL (and VALKEY_*), which internal/votes reads. Provisioned on deploy;
+# without it the roadmap still renders and voting is simply inert.
+[addons.miren-valkey]
+variant = "small"

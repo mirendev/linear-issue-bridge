@@ -1,5 +1,20 @@
 name = "linear-issue-bridge"
 
+# Fixed rather than auto, because auto scales to zero and the cold start is
+# ~16s against ~100ms warm. The marketing site renders /roadmap from this
+# service with an 8s timeout, so a scaled-to-zero bridge means the first
+# visitor after an idle period gets the "temporarily unavailable" fallback
+# while the bridge wakes up behind them. Same applies to this service's own
+# issue pages, which have been paying that cold start all along.
+#
+# Fixed means no autoscaling at all, which is the trade. It is a cheap one
+# here: responses are a cached board served from memory, and the expensive
+# part (the Linear fetch) is coalesced and cached regardless of how many
+# instances are running.
+[services.web.concurrency]
+mode = "fixed"
+num_instances = 2
+
 # Roadmap heart counts and the rate limiter that guards writing them. Injects
 # REDIS_URL (and VALKEY_*), which internal/votes reads. Provisioned on deploy;
 # without it the roadmap still renders and voting is simply inert.

@@ -60,8 +60,9 @@ func TestBoardHandlerServesTheFinishedBoard(t *testing.T) {
 	}
 }
 
-// The wire format must not carry anything the page does not render. A leak
-// here is how internal Linear prose reaches the public board.
+// Apart from explicitly temporary compatibility fields, the wire format must
+// not carry anything the page does not render. A leak here is how internal
+// Linear prose reaches the public board.
 func TestBoardHandlerWireFormatIsMinimal(t *testing.T) {
 	svc := NewService(&fakeFetcher{}, time.Minute)
 	rec := serve(t, svc, nil)
@@ -81,7 +82,7 @@ func TestBoardHandlerWireFormatIsMinimal(t *testing.T) {
 
 	allowed := map[string]bool{
 		"id": true, "title": true, "description": true, "statusName": true,
-		"labels": true, "release": true, "docsUrl": true, "blogUrl": true, "votes": true,
+		"labels": true, "release": true, "links": true, "docsUrl": true, "blogUrl": true, "votes": true,
 	}
 	for k := range card {
 		if !allowed[k] {
@@ -185,6 +186,15 @@ func TestBoardHandlerNeverEmitsNullArrays(t *testing.T) {
 		for i, c := range cards {
 			if string(c["labels"]) == "null" {
 				t.Errorf("%s[%d].labels serialised as null, want []", col, i)
+			}
+			linksRaw, ok := c["links"]
+			if !ok {
+				t.Errorf("%s[%d].links is missing", col, i)
+				continue
+			}
+			var links []json.RawMessage
+			if err := json.Unmarshal(linksRaw, &links); err != nil || links == nil {
+				t.Errorf("%s[%d].links serialised as %s, want an array", col, i, linksRaw)
 			}
 		}
 	}

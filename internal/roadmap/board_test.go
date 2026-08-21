@@ -57,9 +57,15 @@ func projects() []*linearapi.Project {
 		{ID: "shipped-1", Name: "Shipped 1", Status: linearapi.ProjectStatus{Name: "Completed", Type: "completed"},
 			Labels: labels(ShippedLabel, "v0.31"), CompletedAt: ago(5 * 24 * time.Hour),
 			ExternalLinks: []linearapi.ExternalLink{
-				{URL: "https://miren.md/anywhere", Label: "Docs"},
+				{URL: "https://miren.md/anywhere", Label: "Read the docs"},
 				{URL: "https://miren.dev/blog/anywhere", Label: "Launch post"},
+				{URL: "https://github.com/mirendev/runtime/releases", Label: "Release notes"},
+				{URL: "HTTPS://example.com/uppercase", Label: "Uppercase HTTPS"},
+				{URL: "  https://example.com/spaced \t", Label: "Spaced URL"},
 				{URL: "http://insecure.example.com", Label: "Docs mirror"},
+				{URL: "https://", Label: "Empty host"},
+				{URL: "https:///path", Label: "Path without host"},
+				{URL: "https://example.com/untitled", Label: "  "},
 			}},
 		// Listed after shipped-1 but completed more recently.
 		{ID: "shipped-2", Name: "Shipped 2", Status: linearapi.ProjectStatus{Name: "Completed", Type: "completed"},
@@ -269,6 +275,21 @@ func TestLinksComeFromLabelledHTTPSExternalLinks(t *testing.T) {
 	}
 	if s1.BlogURL == nil || *s1.BlogURL != "https://miren.dev/blog/anywhere" {
 		t.Errorf("blogUrl = %v", s1.BlogURL)
+	}
+	want := []Link{
+		{Title: "Read the docs", URL: "https://miren.md/anywhere"},
+		{Title: "Launch post", URL: "https://miren.dev/blog/anywhere"},
+		{Title: "Release notes", URL: "https://github.com/mirendev/runtime/releases"},
+		{Title: "Uppercase HTTPS", URL: "HTTPS://example.com/uppercase"},
+		{Title: "Spaced URL", URL: "https://example.com/spaced"},
+	}
+	if len(s1.Links) != len(want) {
+		t.Fatalf("links = %#v, want %#v", s1.Links, want)
+	}
+	for i := range want {
+		if s1.Links[i] != want[i] {
+			t.Errorf("links[%d] = %#v, want %#v", i, s1.Links[i], want[i])
+		}
 	}
 	if e1 := find(t, build().Exploring, "explore-1"); e1.DocsURL != nil {
 		t.Errorf("explore-1 docsUrl = %v, want nil", *e1.DocsURL)

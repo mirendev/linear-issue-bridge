@@ -240,36 +240,6 @@ func TestFetchLabelByNameNotFound(t *testing.T) {
 	}
 }
 
-func TestAddLabel(t *testing.T) {
-	var gotQuery string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var req graphQLRequest
-		_ = json.NewDecoder(r.Body).Decode(&req)
-		gotQuery = req.Query
-
-		resp := map[string]any{
-			"data": map[string]any{
-				"issueAddLabel": map[string]any{
-					"success": true,
-				},
-			},
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
-	}))
-	defer srv.Close()
-
-	client := newTestClient(srv.URL)
-
-	err := client.AddLabel(context.Background(), "issue-uuid-1", "label-uuid-1")
-	if err != nil {
-		t.Fatalf("AddLabel: %v", err)
-	}
-	if gotQuery == "" {
-		t.Fatal("expected a GraphQL query to be sent")
-	}
-}
-
 func TestEnsureToken(t *testing.T) {
 	tokenCalls := 0
 	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

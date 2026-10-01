@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"miren.dev/linear-issue-bridge/internal/cache"
-	"miren.dev/linear-issue-bridge/internal/github"
 	"miren.dev/linear-issue-bridge/internal/linearapi"
 	"miren.dev/linear-issue-bridge/internal/page"
 	"miren.dev/linear-issue-bridge/internal/roadmap"
@@ -360,16 +359,6 @@ func run() error {
 			slog.Error("render issue", "error", err)
 		}
 	})
-
-	webhookSecret := os.Getenv("GITHUB_WEBHOOK_SECRET")
-	if webhookSecret != "" {
-		labeler := linearapi.NewPublicLabeler(client, teamKey)
-		webhookHandler := github.NewWebhookHandler(webhookSecret, teamKey, labeler)
-		mux.Handle("POST /webhook/github", webhookHandler)
-		slog.Info("github webhook enabled", "path", "/webhook/github")
-	} else {
-		slog.Info("github webhook disabled (GITHUB_WEBHOOK_SECRET not set)")
-	}
 
 	ln, err := net.Listen("tcp", ":"+port)
 	if err != nil {

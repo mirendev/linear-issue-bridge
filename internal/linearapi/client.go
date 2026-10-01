@@ -299,14 +299,6 @@ query RecentlyCancelledPublicIssues($teamKey: String!, $labelName: String!, $sin
 }
 `
 
-const addLabelMutation = `
-mutation AddLabel($issueID: String!, $labelID: String!) {
-  issueAddLabel(id: $issueID, labelId: $labelID) {
-    success
-  }
-}
-`
-
 const fileUploadMutation = `
 mutation FileUpload($size: Int!, $contentType: String!, $filename: String!) {
   fileUpload(size: $size, contentType: $contentType, filename: $filename) {
@@ -523,15 +515,6 @@ func (c *Client) FetchLabelByName(ctx context.Context, _, name string) (string, 
 	}
 
 	return resp.IssueLabels.Nodes[0].ID, nil
-}
-
-// AddLabel appends a label to an issue.
-func (c *Client) AddLabel(ctx context.Context, issueID, labelID string) error {
-	_, err := c.do(ctx, addLabelMutation, map[string]any{
-		"issueID": issueID,
-		"labelID": labelID,
-	})
-	return err
 }
 
 // FetchPublicIssues retrieves all open issues and recently completed issues

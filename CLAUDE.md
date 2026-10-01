@@ -32,7 +32,6 @@ Then visit `http://localhost:8080/MIR-42`
 - `internal/linearapi/` -- GraphQL client for Linear API
 - `internal/cache/` -- In-memory TTL cache wrapping the Linear client
 - `internal/page/` -- HTML template rendering + static assets
-- `internal/github/` -- GitHub webhook handling (Phase 2) + MIR-\d+ scanner
 - `internal/roadmap/` -- Public roadmap: Linear visibility policy, bucketing, and its two endpoints
 - `internal/votes/` -- Roadmap heart counts + rate limiting, backed by Valkey
 - `internal/workloadauth/` -- Verifies Miren workload identity tokens on the vote endpoint
@@ -53,7 +52,6 @@ Miren remembers env vars and secrets from previous deploys, so you only need to 
 | `LINEAR_OAUTH_CLIENT_ID` | OAuth app client ID (from Linear Settings > API > Applications) |
 | `LINEAR_OAUTH_CLIENT_SECRET` | OAuth app client secret |
 | `LINEAR_TEAM_KEY` | Issue prefix, e.g. `MIR` |
-| `GITHUB_WEBHOOK_SECRET` | Enables `POST /webhook/github`; GitHub HMAC-SHA256 secret |
 | `FATHOM_SITE_ID` | Fathom Analytics site ID; omit to disable tracking |
 | `BASE_URL` | Public origin for absolute OpenGraph URLs; defaults to `https://linear.miren.garden` |
 | `REDIS_URL` / `VALKEY_URL` | Roadmap vote counts and rate limiting; omit and voting is inert |

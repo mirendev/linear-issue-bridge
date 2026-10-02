@@ -18,7 +18,7 @@ import (
 	"miren.dev/linear-issue-bridge/internal/page"
 	"miren.dev/linear-issue-bridge/internal/roadmap"
 	"miren.dev/linear-issue-bridge/internal/votes"
-	"miren.dev/linear-issue-bridge/internal/workloadauth"
+	"miren.dev/runtime/x/workloadid"
 )
 
 type issueListItem struct {
@@ -217,7 +217,7 @@ func run() error {
 	// route simply does not exist, rather than existing unauthenticated.
 	if issuers := splitList(os.Getenv("ROADMAP_TRUSTED_ISSUERS")); len(issuers) > 0 {
 		audience := firstNonEmpty(os.Getenv("ROADMAP_VOTE_AUDIENCE"), baseURL)
-		verifier, err := workloadauth.New(workloadauth.Config{
+		verifier, err := workloadid.NewVerifier(workloadid.VerifierConfig{
 			TrustedIssuers:      issuers,
 			Audience:            audience,
 			RequireOrganization: os.Getenv("ROADMAP_REQUIRE_ORGANIZATION"),
@@ -225,7 +225,7 @@ func run() error {
 		if err != nil {
 			return fmt.Errorf("configure roadmap vote auth: %w", err)
 		}
-		mux.HandleFunc("POST /api/roadmap/vote", roadmap.VoteHandler(roadmapService, voteStore, verifier))
+		mux.HandleFunc("POST /api/roadmap/vote", roadmap.VoteHandler(roadmapService, voteStore, voteAuth{verifier}))
 		slog.Info("roadmap voting enabled", "audience", audience, "trusted_issuers", issuers)
 	} else {
 		slog.Info("roadmap voting disabled (ROADMAP_TRUSTED_ISSUERS not set)")
@@ -366,4 +366,18 @@ func run() error {
 	}
 	slog.Info("starting server", "addr", "http://"+ln.Addr().String(), "team_key", teamKey)
 	return http.Serve(ln, mux)
+}
+
+// voteAuth adapts a workloadid.Verifier to the roadmap handler's
+// Authenticate shape: a vote is accepted only with a bearer token from a
+// trusted cluster, minted for this service.
+type voteAuth struct{ v *workloadid.Verifier }
+
+func (a voteAuth) Authenticate(ctx context.Context, r *http.Request) error {
+	token, err := workloadid.BearerToken(r)
+	if err != nil {
+		return err
+	}
+	_, err = a.v.Verify(ctx, token)
+	return err
 }

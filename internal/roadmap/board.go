@@ -200,9 +200,22 @@ func projectLinks(p *linearapi.Project) []Link {
 		if title == "" || err != nil || !strings.EqualFold(parsed.Scheme, "https") || parsed.Hostname() == "" {
 			continue
 		}
+		if !linkVisitorsCanOpen(parsed.Hostname()) {
+			continue
+		}
 		links = append(links, Link{Title: title, URL: rawURL})
 	}
 	return links
+}
+
+// linkVisitorsCanOpen drops links into Linear itself, which only workspace
+// members can follow. Linear adds one automatically whenever an issue is
+// converted to a project (the "[Original Issue]" resource), so pruning them
+// by hand never sticks. Subdomains count too: uploads.linear.app needs a
+// login just the same.
+func linkVisitorsCanOpen(host string) bool {
+	host = strings.TrimSuffix(strings.ToLower(host), ".")
+	return host != "linear.app" && !strings.HasSuffix(host, ".linear.app")
 }
 
 func findLink(links []Link, pattern *regexp.Regexp) *string {

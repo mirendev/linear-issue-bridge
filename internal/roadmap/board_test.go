@@ -66,6 +66,9 @@ func projects() []*linearapi.Project {
 				{URL: "https://", Label: "Empty host"},
 				{URL: "https:///path", Label: "Path without host"},
 				{URL: "https://example.com/untitled", Label: "  "},
+				{URL: "https://linear.app/miren/issue/MIR-982/app-and-deploy-visibility", Label: "MIR-982 [Original Issue]"},
+				{URL: "https://Uploads.Linear.App/abc/screenshot.png", Label: "Linear upload"},
+				{URL: "https://notlinear.app/fine", Label: "Lookalike host"},
 			}},
 		// Listed after shipped-1 but completed more recently.
 		{ID: "shipped-2", Name: "Shipped 2", Status: linearapi.ProjectStatus{Name: "Completed", Type: "completed"},
@@ -282,6 +285,7 @@ func TestLinksComeFromLabelledHTTPSExternalLinks(t *testing.T) {
 		{Title: "Release notes", URL: "https://github.com/mirendev/runtime/releases"},
 		{Title: "Uppercase HTTPS", URL: "HTTPS://example.com/uppercase"},
 		{Title: "Spaced URL", URL: "https://example.com/spaced"},
+		{Title: "Lookalike host", URL: "https://notlinear.app/fine"},
 	}
 	if len(s1.Links) != len(want) {
 		t.Fatalf("links = %#v, want %#v", s1.Links, want)

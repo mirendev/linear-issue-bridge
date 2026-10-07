@@ -7,11 +7,15 @@
 <body>
   {{template "header"}}
   <main>
-    <div class="not-found">
-      <h1>Issue not found</h1>
-      <p>The issue you're looking for doesn't exist.</p>
-    </div>
+    {{template "notfound-main" .}}
   </main>
   {{template "footer"}}
 </body>
 </html>
+
+{{define "notfound-main"}}
+<div class="not-found">
+  <h1>Issue not found</h1>
+  <p>The issue you're looking for doesn't exist.</p>
+</div>
+{{end}}

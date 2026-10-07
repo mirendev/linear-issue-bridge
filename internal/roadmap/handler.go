@@ -8,10 +8,11 @@ import (
 	"time"
 )
 
-// fetchTimeout deliberately exceeds the Linear client's own 10s HTTP timeout,
-// so a slow upstream fails with a real error rather than having the request
-// context cancel out from under it. Same reasoning as the issues endpoint.
-const fetchTimeout = 15 * time.Second
+// fetchTimeout deliberately exceeds the Linear client's worst case for one
+// read (a 5s attempt, a short backoff, then a 10s attempt), so a slow upstream fails with a
+// real error rather than having the request context cancel out from under it.
+// Same reasoning as the issues endpoint.
+const fetchTimeout = 20 * time.Second
 
 // VoteStore is the slice of the vote store the handlers need.
 type VoteStore interface {

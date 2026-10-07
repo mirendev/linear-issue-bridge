@@ -126,11 +126,10 @@ type issuePageData struct {
 	Meta            Meta
 }
 
-func (r *Renderer) RenderIssuePage(w io.Writer, issue *linearapi.Issue) error {
-	descHTML := renderMarkdown(r.md, issue.Description)
-	return r.templates.ExecuteTemplate(w, "issue.html", issuePageData{
+func (r *Renderer) issueData(issue *linearapi.Issue) issuePageData {
+	return issuePageData{
 		Issue:           issue,
-		DescriptionHTML: descHTML,
+		DescriptionHTML: renderMarkdown(r.md, issue.Description),
 		GitHubPRs:       issue.GitHubPRs(),
 		DuplicateOf:     issue.DuplicateOf(),
 		TeamKey:         r.teamKey,
@@ -140,7 +139,53 @@ func (r *Renderer) RenderIssuePage(w io.Writer, issue *linearapi.Issue) error {
 			summarize(issue.Description, 200),
 			"article",
 		),
+	}
+}
+
+func (r *Renderer) RenderIssuePage(w io.Writer, issue *linearapi.Issue) error {
+	return r.templates.ExecuteTemplate(w, "issue.html", r.issueData(issue))
+}
+
+type issueShellData struct {
+	Identifier string
+	Meta       Meta
+}
+
+// RenderIssueShell renders an issue page with nothing from Linear in it yet,
+// for when Linear is too slow to wait on. Its script fills it in from the
+// /api/issue endpoint, saying what it's doing while it waits.
+func (r *Renderer) RenderIssueShell(w io.Writer, identifier string) error {
+	return r.templates.ExecuteTemplate(w, "issue_shell.html", issueShellData{
+		Identifier: identifier,
+		Meta:       r.meta("/"+identifier, identifier+" — Miren", "A Miren issue, shared from Linear.", "website"),
 	})
+}
+
+// Fragment is a page's <main> content plus its document title, for the issue
+// shell to swap in once Linear answers.
+type Fragment struct {
+	Title string `json:"title"`
+	HTML  string `json:"html"`
+}
+
+func (r *Renderer) fragment(name, title string, data any) (Fragment, error) {
+	var buf bytes.Buffer
+	if err := r.templates.ExecuteTemplate(&buf, name, data); err != nil {
+		return Fragment{}, err
+	}
+	return Fragment{Title: title, HTML: buf.String()}, nil
+}
+
+func (r *Renderer) IssueFragment(issue *linearapi.Issue) (Fragment, error) {
+	return r.fragment("issue-main", issue.Identifier+": "+issue.Title+" — Miren", r.issueData(issue))
+}
+
+func (r *Renderer) StubFragment(identifier string) (Fragment, error) {
+	return r.fragment("stub-main", identifier+" — Miren", stubPageData{Identifier: identifier, TeamKey: r.teamKey})
+}
+
+func (r *Renderer) NotFoundFragment() (Fragment, error) {
+	return r.fragment("notfound-main", "Not Found — Miren", pageData{})
 }
 
 type stubPageData struct {

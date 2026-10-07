@@ -42,3 +42,12 @@
     <a href="https://miren.dev">Miren</a>
   </footer>
 {{end}}
+
+{{/* linear-status narrates a browser-side fetch from Linear; static/linear.js drives it. */}}
+{{define "linear-status"}}
+  <p class="linear-status" data-state="loading" role="status" aria-live="polite">
+    <span class="linear-status-dot" aria-hidden="true"></span>
+    <span class="linear-status-text">Talking to Linear…</span>
+    <button type="button" class="linear-status-retry" hidden>Retry now</button>
+  </p>
+{{end}}

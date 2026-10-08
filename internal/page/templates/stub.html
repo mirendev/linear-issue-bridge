@@ -7,12 +7,16 @@
 <body>
   {{template "header"}}
   <main>
-    <div class="stub">
-      <span class="issue-identifier">{{.Identifier}}</span>
-      <h1>Not shared publicly</h1>
-      <p>This issue exists but is not currently shared publicly.</p>
-    </div>
+    {{template "stub-main" .}}
   </main>
   {{template "footer"}}
 </body>
 </html>
+
+{{define "stub-main"}}
+<div class="stub">
+  <span class="issue-identifier">{{.Identifier}}</span>
+  <h1>Not shared publicly</h1>
+  <p>This issue exists but is not currently shared publicly.</p>
+</div>
+{{end}}

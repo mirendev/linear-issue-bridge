@@ -33,10 +33,9 @@ type issueListItem struct {
 type issuesAPIResponse struct {
 	Issues   []issueListItem `json:"issues"`
 	Statuses []string        `json:"statuses"`
-	Stale    bool            `json:"stale,omitempty"`
 }
 
-func buildIssuesResponse(issues []*linearapi.Issue, stale bool) issuesAPIResponse {
+func buildIssuesResponse(issues []*linearapi.Issue) issuesAPIResponse {
 	seen := make(map[string]bool)
 	var statuses []string
 	items := make([]issueListItem, 0, len(issues))
@@ -55,7 +54,7 @@ func buildIssuesResponse(issues []*linearapi.Issue, stale bool) issuesAPIRespons
 			UpdatedDisplay: issue.UpdatedAt.Format("Jan 2, 2006"),
 		})
 	}
-	return issuesAPIResponse{Issues: items, Statuses: statuses, Stale: stale}
+	return issuesAPIResponse{Issues: items, Statuses: statuses}
 }
 
 // splitList reads a comma-separated env var, dropping blanks.
@@ -187,27 +186,34 @@ func run() error {
 	})
 
 	mux.HandleFunc("GET /api/issues", func(w http.ResponseWriter, r *http.Request) {
-		// Outer handler timeout deliberately exceeds the inner http client
-		// timeout (10s in linearapi.NewClient), so a slow upstream call fails
-		// with a real error before the request context cancels out from under it.
-		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		// Outer handler timeout deliberately exceeds the Linear client's worst
+		// case for one read (5s, then a 10s retry; see linearapi.Client.do),
+		// so a slow upstream call fails with a real error before the request
+		// context cancels out from under it.
+		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 		defer cancel()
 
+		// The cache already serves a recent-enough copy through a Linear
+		// outage, so an error here means there is nothing safe to show.
 		issues, err := issueCache.GetPublicIssues(ctx, teamKey)
 		if err != nil {
-			slog.Warn("fetch public issues, attempting stale fallback", "error", err)
-			if cached, _, ok := issueCache.PeekPublicIssues(teamKey); ok {
-				w.Header().Set("Content-Type", "application/json; charset=utf-8")
-				_ = json.NewEncoder(w).Encode(buildIssuesResponse(cached, true))
-				return
-			}
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			slog.Error("fetch public issues", "error", err)
+			http.Error(w, "Linear unavailable", http.StatusServiceUnavailable)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_ = json.NewEncoder(w).Encode(buildIssuesResponse(issues, false))
+		_ = json.NewEncoder(w).Encode(buildIssuesResponse(issues))
 	})
+
+	issueHandlers := &issueHandlers{
+		cache:      issueCache,
+		renderer:   renderer,
+		identifier: identifierPattern,
+		shellAfter: shellAfter,
+		apiWait:    apiIssueWait,
+	}
+	mux.HandleFunc("GET /api/issue/{identifier}", issueHandlers.api)
 
 	mux.HandleFunc("GET /api/roadmap", roadmap.BoardHandler(roadmapService, voteStore))
 
@@ -316,49 +322,7 @@ func run() error {
 		}
 	})
 
-	mux.HandleFunc("GET /{identifier}", func(w http.ResponseWriter, r *http.Request) {
-		identifier := strings.ToUpper(r.PathValue("identifier"))
-
-		if !identifierPattern.MatchString(identifier) {
-			w.WriteHeader(http.StatusNotFound)
-			if err := renderer.RenderNotFound(w); err != nil {
-				slog.Error("render not found", "error", err)
-			}
-			return
-		}
-
-		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
-		defer cancel()
-
-		issue, err := issueCache.Get(ctx, identifier)
-		if err != nil {
-			slog.Error("fetch issue", "identifier", identifier, "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		if issue == nil {
-			w.WriteHeader(http.StatusNotFound)
-			if err := renderer.RenderNotFound(w); err != nil {
-				slog.Error("render not found", "error", err)
-			}
-			return
-		}
-
-		if !issue.IsPublic() {
-			w.WriteHeader(http.StatusOK)
-			if err := renderer.RenderStubPage(w, identifier); err != nil {
-				slog.Error("render stub", "error", err)
-			}
-			return
-		}
-
-		slog.Info("serving issue", "identifier", identifier)
-		w.WriteHeader(http.StatusOK)
-		if err := renderer.RenderIssuePage(w, issue); err != nil {
-			slog.Error("render issue", "error", err)
-		}
-	})
+	mux.HandleFunc("GET /{identifier}", issueHandlers.page)
 
 	ln, err := net.Listen("tcp", ":"+port)
 	if err != nil {

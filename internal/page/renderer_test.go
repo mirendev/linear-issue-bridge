@@ -182,3 +182,86 @@ func TestRenderMarkdown(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderIssueShell(t *testing.T) {
+	r, err := NewRenderer("MIR", "", "https://linear.miren.garden")
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	var buf bytes.Buffer
+	if err := r.RenderIssueShell(&buf, "MIR-42"); err != nil {
+		t.Fatalf("RenderIssueShell: %v", err)
+	}
+
+	html := buf.String()
+	for _, check := range []string{
+		`data-issue-shell="MIR-42"`,
+		`class="linear-status"`,
+		"Talking to Linear",
+		"/static/linear.js",
+		`content="https://linear.miren.garden/MIR-42"`,
+	} {
+		if !strings.Contains(html, check) {
+			t.Errorf("shell missing %q", check)
+		}
+	}
+}
+
+func TestIssueFragmentMatchesFullPage(t *testing.T) {
+	r, err := NewRenderer("MIR", "", "https://linear.miren.garden")
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	issue := &linearapi.Issue{
+		Identifier:  "MIR-42",
+		Title:       "Fragment Title",
+		Description: "Some **bold** text.",
+		State:       linearapi.State{Name: "Todo", Color: "#e2e2e2", Type: "unstarted"},
+	}
+
+	frag, err := r.IssueFragment(issue)
+	if err != nil {
+		t.Fatalf("IssueFragment: %v", err)
+	}
+	if frag.Title != "MIR-42: Fragment Title — Miren" {
+		t.Errorf("Title = %q", frag.Title)
+	}
+	if strings.Contains(frag.HTML, "<html") || strings.Contains(frag.HTML, "<header") {
+		t.Error("fragment should be <main> content only")
+	}
+
+	// The shell swaps the fragment into <main>, so it must be exactly what
+	// the full page renders there.
+	var page bytes.Buffer
+	if err := r.RenderIssuePage(&page, issue); err != nil {
+		t.Fatalf("RenderIssuePage: %v", err)
+	}
+	if !strings.Contains(page.String(), frag.HTML) {
+		t.Error("full page does not contain the fragment verbatim")
+	}
+}
+
+func TestStubAndNotFoundFragments(t *testing.T) {
+	r, err := NewRenderer("MIR", "", "https://linear.miren.garden")
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	stub, err := r.StubFragment("MIR-42")
+	if err != nil {
+		t.Fatalf("StubFragment: %v", err)
+	}
+	if !strings.Contains(stub.HTML, "not currently shared publicly") || stub.Title != "MIR-42 — Miren" {
+		t.Errorf("stub fragment = %+v", stub)
+	}
+
+	nf, err := r.NotFoundFragment()
+	if err != nil {
+		t.Fatalf("NotFoundFragment: %v", err)
+	}
+	if !strings.Contains(nf.HTML, "Issue not found") {
+		t.Errorf("not-found fragment = %+v", nf)
+	}
+}

@@ -380,16 +380,11 @@ main {
   letter-spacing: 0.02em;
 }
 
-.issues-empty,
-.issues-error {
+.issues-empty {
   text-align: center;
   padding: 3rem 0;
   color: var(--color-text-secondary);
   font-size: 1rem;
-}
-
-.issues-error a {
-  color: var(--color-accent);
 }
 
 .issues-item-skeleton {
@@ -420,6 +415,131 @@ main {
   .issues-item-skeleton::before {
     animation: none;
     background: var(--color-border-subtle);
+  }
+}
+
+/* ── Linear Status ───────────────────────────────────── */
+
+/* Narrates a browser-side fetch from Linear: loading, slow, retrying, or
+   error. static/linear.js sets data-state. */
+.linear-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary);
+  --linear-status-dot: var(--color-accent);
+}
+
+.linear-status[hidden] {
+  display: none;
+}
+
+.linear-status[data-state="slow"] {
+  --linear-status-dot: var(--terra-500);
+}
+
+.linear-status[data-state="retrying"],
+.linear-status[data-state="error"] {
+  --linear-status-dot: var(--terra-600);
+  color: var(--color-text);
+}
+
+.linear-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--linear-status-dot);
+}
+
+.linear-status[data-state="loading"] .linear-status-dot,
+.linear-status[data-state="slow"] .linear-status-dot {
+  animation: linear-status-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes linear-status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.linear-status-retry {
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-accent);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.25rem 0.625rem;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.linear-status-retry:hover {
+  background: var(--color-accent-light);
+  border-color: var(--color-accent);
+}
+
+.linear-status-retry[hidden] {
+  display: none;
+}
+
+/* Placeholder blocks for the issue page while Linear is still answering. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--color-border-subtle);
+}
+
+.skeleton::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-border) 50%,
+    transparent 100%
+  );
+  animation: issues-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-title {
+  height: 2.25rem;
+  width: 70%;
+  margin-bottom: 1.25rem;
+}
+
+.skeleton-meta {
+  height: 1.5rem;
+  width: 35%;
+  margin-bottom: 2rem;
+}
+
+.skeleton-line {
+  height: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.skeleton-line-short {
+  width: 55%;
+}
+
+/* Once we've given up, stop pretending something is on its way. */
+.issue-shell:has(.linear-status[data-state="error"]) .skeleton::before {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::before,
+  .linear-status-dot {
+    animation: none !important;
   }
 }
 

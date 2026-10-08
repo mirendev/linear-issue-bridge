@@ -15,7 +15,8 @@
           Submit an issue
         </a>
       </div>
-      <p class="issues-count" aria-live="polite">Loading…</p>
+      <p class="issues-count" aria-live="polite"></p>
+      {{template "linear-status"}}
       <div class="issues-filters" hidden></div>
       <ul class="issues issues-skeleton" aria-hidden="true">
         <li class="issues-item issues-item-skeleton"></li>
@@ -25,7 +26,7 @@
       </ul>
       <ul class="issues issues-data" hidden></ul>
       <p class="issues-empty" hidden>No open public issues right now.</p>
-      <p class="issues-error" hidden>Couldn't load issues. <a href="/issues">Try again</a>.</p>
+      <script src="/static/linear.js"></script>
       <script>
         (function() {
           var root = document.querySelector('.issues-list');
@@ -34,7 +35,6 @@
           var filters = root.querySelector('.issues-filters');
           var count = root.querySelector('.issues-count');
           var empty = root.querySelector('.issues-empty');
-          var errEl = root.querySelector('.issues-error');
 
           var currentFilter = 'all';
           var allItems = [];
@@ -144,23 +144,7 @@
             applyFilter('all');
           }
 
-          function showError() {
-            skeleton.remove();
-            count.textContent = '';
-            errEl.hidden = false;
-            root.setAttribute('data-state', 'error');
-          }
-
-          fetch('/api/issues', { headers: { 'Accept': 'application/json' } })
-            .then(function(res) {
-              if (!res.ok) throw new Error('HTTP ' + res.status);
-              return res.json();
-            })
-            .then(render)
-            .catch(function(err) {
-              console.error('failed to load issues', err);
-              showError();
-            });
+          loadFromLinear('/api/issues', root.querySelector('.linear-status'), render);
         })();
       </script>
     </div>

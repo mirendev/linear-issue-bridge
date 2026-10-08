@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -18,6 +19,14 @@ const (
 	defaultEndpoint   = "https://api.linear.app/graphql"
 	defaultTokenURL   = "https://api.linear.app/oauth/token"
 	tokenExpiryBuffer = 5 * time.Minute
+
+	// A read's first attempt gets a short deadline, then one retry with the
+	// full client timeout. When a connection stalls, a fresh one usually
+	// answers well before a single long wait would; when Linear is evenly
+	// slow, the retry still lets a 6-9s answer through.
+	defaultAttemptTimeout = 5 * time.Second
+	defaultRetryDelay     = 250 * time.Millisecond
+	readAttempts          = 2
 )
 
 type Client struct {
@@ -26,6 +35,9 @@ type Client struct {
 	endpoint     string
 	tokenURL     string
 	httpClient   *http.Client
+
+	attemptTimeout time.Duration
+	retryDelay     time.Duration
 
 	tokenMu     sync.Mutex
 	token       string
@@ -41,6 +53,8 @@ func NewClient(clientID, clientSecret string) *Client {
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
+		attemptTimeout: defaultAttemptTimeout,
+		retryDelay:     defaultRetryDelay,
 	}
 }
 
@@ -410,10 +424,51 @@ func ParseIdentifier(identifier string) (teamKey string, number int, err error) 
 	return parts[0], n, nil
 }
 
+// do runs a read query, retrying once on timeouts, network errors, 429s, and
+// 5xxs. Only use it for queries: a mutation that timed out may still have
+// happened, so retrying one could, say, file a suggestion twice.
 func (c *Client) do(ctx context.Context, query string, variables map[string]any) (json.RawMessage, error) {
+	var lastErr error
+	for attempt := range readAttempts {
+		if attempt > 0 {
+			// Jitter so a burst of callers doesn't retry in lockstep.
+			delay := c.retryDelay/2 + rand.N(c.retryDelay)
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return nil, lastErr
+			}
+		}
+
+		attemptCtx, cancel := ctx, context.CancelFunc(func() {})
+		if attempt < readAttempts-1 {
+			attemptCtx, cancel = context.WithTimeout(ctx, c.attemptTimeout)
+		}
+		data, retryable, err := c.attempt(attemptCtx, query, variables)
+		cancel()
+		if err == nil {
+			return data, nil
+		}
+		lastErr = err
+		if !retryable || ctx.Err() != nil {
+			break
+		}
+	}
+	return nil, lastErr
+}
+
+// mutate runs a mutation exactly once.
+func (c *Client) mutate(ctx context.Context, query string, variables map[string]any) (json.RawMessage, error) {
+	data, _, err := c.attempt(ctx, query, variables)
+	return data, err
+}
+
+// attempt makes one GraphQL request and reports whether a failure is worth
+// retrying.
+func (c *Client) attempt(ctx context.Context, query string, variables map[string]any) (data json.RawMessage, retryable bool, err error) {
 	token, err := c.ensureToken(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("authenticate: %w", err)
+		return nil, true, fmt.Errorf("authenticate: %w", err)
 	}
 
 	reqBody := graphQLRequest{
@@ -423,12 +478,12 @@ func (c *Client) do(ctx context.Context, query string, variables map[string]any)
 
 	bodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return nil, false, fmt.Errorf("marshal request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, bytes.NewReader(bodyBytes))
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return nil, false, fmt.Errorf("create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -436,29 +491,30 @@ func (c *Client) do(ctx context.Context, query string, variables map[string]any)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("execute request: %w", err)
+		return nil, true, fmt.Errorf("execute request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
+		return nil, true, fmt.Errorf("read response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("linear API returned %d: %s", resp.StatusCode, string(respBytes))
+		retryable := resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500
+		return nil, retryable, fmt.Errorf("linear API returned %d: %s", resp.StatusCode, string(respBytes))
 	}
 
 	var gqlResp graphQLResponse
 	if err := json.Unmarshal(respBytes, &gqlResp); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
+		return nil, false, fmt.Errorf("decode response: %w", err)
 	}
 
 	if len(gqlResp.Errors) > 0 {
-		return nil, fmt.Errorf("linear API error: %s", gqlResp.Errors[0].Message)
+		return nil, false, fmt.Errorf("linear API error: %s", gqlResp.Errors[0].Message)
 	}
 
-	return gqlResp.Data, nil
+	return gqlResp.Data, false, nil
 }
 
 // FetchIssue retrieves an issue by its identifier (e.g. "MIR-42").
@@ -733,7 +789,7 @@ func (c *Client) CreateIssue(ctx context.Context, teamID, title, description str
 	if len(labelIDs) > 0 {
 		vars["labelIds"] = labelIDs
 	}
-	data, err := c.do(ctx, createIssueMutation, vars)
+	data, err := c.mutate(ctx, createIssueMutation, vars)
 	if err != nil {
 		return nil, err
 	}
@@ -763,7 +819,7 @@ func (c *Client) CreateIssue(ctx context.Context, teamID, title, description str
 
 // UploadFile uploads a file to Linear's storage and returns the public asset URL.
 func (c *Client) UploadFile(ctx context.Context, filename, contentType string, fileData []byte) (string, error) {
-	data, err := c.do(ctx, fileUploadMutation, map[string]any{
+	data, err := c.mutate(ctx, fileUploadMutation, map[string]any{
 		"size":        len(fileData),
 		"contentType": contentType,
 		"filename":    filename,

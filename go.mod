@@ -1,6 +1,6 @@
 module miren.dev/linear-issue-bridge
 
-go 1.25
+go 1.27.3
 
 require (
 	github.com/redis/go-redis/v9 v9.22.0

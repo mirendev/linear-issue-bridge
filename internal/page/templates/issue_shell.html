@@ -20,15 +20,6 @@
   </main>
   {{template "footer"}}
   <script src="/static/linear.js"></script>
-  <script>
-    (function() {
-      var main = document.querySelector('main[data-issue-shell]');
-      var id = main.getAttribute('data-issue-shell');
-      loadFromLinear('/api/issue/' + encodeURIComponent(id), main.querySelector('.linear-status'), function(data) {
-        main.innerHTML = data.html;
-        document.title = data.title;
-      });
-    })();
-  </script>
+  <script src="/static/issue-shell.js"></script>
 </body>
 </html>

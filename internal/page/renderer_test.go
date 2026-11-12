@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -263,5 +264,47 @@ func TestStubAndNotFoundFragments(t *testing.T) {
 	}
 	if !strings.Contains(nf.HTML, "Issue not found") {
 		t.Errorf("not-found fragment = %+v", nf)
+	}
+}
+
+// The CSP forbids inline script, so anything inline in a template would
+// silently stop working in production.
+func TestTemplatesHaveNoInlineScript(t *testing.T) {
+	inlineScript := regexp.MustCompile(`<script(\s[^>]*)?>`)
+	handlerAttr := regexp.MustCompile(`(?i)\son[a-z]+\s*=`)
+	entries, err := templateFS.ReadDir("templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		b, err := templateFS.ReadFile("templates/" + e.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tag := range inlineScript.FindAllString(string(b), -1) {
+			if !strings.Contains(tag, "src=") {
+				t.Errorf("%s: inline <script> blocked by CSP: %s", e.Name(), tag)
+			}
+		}
+		if m := handlerAttr.FindString(string(b)); m != "" {
+			t.Errorf("%s: inline event handler blocked by CSP: %q", e.Name(), m)
+		}
+	}
+}
+
+func TestRenderSuggestSuccessSaysItAwaitsReview(t *testing.T) {
+	r, err := NewRenderer("MIR", "", "https://linear.miren.garden")
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := r.RenderSuggestPage(&buf, SuggestPageData{Success: true, Identifier: "MIR-99"}); err != nil {
+		t.Fatalf("RenderSuggestPage: %v", err)
+	}
+	html := buf.String()
+	for _, want := range []string{`href="/MIR-99"`, "reviews new submissions before they're published"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("success page missing %q", want)
+		}
 	}
 }

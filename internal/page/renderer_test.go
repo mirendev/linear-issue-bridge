@@ -291,3 +291,20 @@ func TestTemplatesHaveNoInlineScript(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderSuggestSuccessSaysItAwaitsReview(t *testing.T) {
+	r, err := NewRenderer("MIR", "", "https://linear.miren.garden")
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := r.RenderSuggestPage(&buf, SuggestPageData{Success: true, Identifier: "MIR-99"}); err != nil {
+		t.Fatalf("RenderSuggestPage: %v", err)
+	}
+	html := buf.String()
+	for _, want := range []string{`href="/MIR-99"`, "reviews new submissions before they're published"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("success page missing %q", want)
+		}
+	}
+}

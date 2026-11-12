@@ -15,7 +15,8 @@
       </p>
       {{if .Success}}
         <div class="suggest-success">
-          <p>Thanks for your suggestion! It's been added as <a href="/{{.Identifier}}">{{.Identifier}}</a>.</p>
+          <p>Thanks for your suggestion! We've filed it as <a href="/{{.Identifier}}">{{.Identifier}}</a>.</p>
+          <p>The team reviews new submissions before they're published, so that page will fill in once it's been triaged.</p>
         </div>
       {{else}}
         {{if .Error}}

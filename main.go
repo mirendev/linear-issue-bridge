@@ -144,15 +144,6 @@ func run() error {
 	}
 	slog.Info("resolved team", "key", teamKey, "id", teamID)
 
-	publicLabelID, err := client.FetchLabelByName(ctx0, teamKey, "public")
-	if err != nil {
-		return fmt.Errorf("fetch public label: %w", err)
-	}
-	if publicLabelID == "" {
-		return fmt.Errorf("label %q not found — create it in Linear first", "public")
-	}
-	slog.Info("resolved label", "name", "public", "id", publicLabelID)
-
 	userSubmittedLabelID, err := client.FetchLabelByName(ctx0, teamKey, "user-submitted")
 	if err != nil {
 		return fmt.Errorf("fetch user-submitted label: %w", err)
@@ -297,7 +288,9 @@ func run() error {
 			description += "\n\n**Contact:** " + contact
 		}
 
-		created, err := client.CreateIssue(ctx, teamID, title, description, []string{publicLabelID, userSubmittedLabelID})
+		// Submissions stay private until a teammate adds the public label,
+		// so nobody can put content on this domain just by filling in a form.
+		created, err := client.CreateIssue(ctx, teamID, title, description, []string{userSubmittedLabelID})
 		if err != nil {
 			slog.Error("create issue", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)

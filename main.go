@@ -287,10 +287,8 @@ func run() error {
 				assetURL, err := client.UploadFile(ctx, header.Filename, contentType, fileData)
 				if err != nil {
 					slog.Error("upload attachment", "error", err)
-				} else if strings.HasPrefix(contentType, "image/") {
-					description += "\n\n![" + header.Filename + "](" + assetURL + ")"
 				} else {
-					description += "\n\n[" + header.Filename + "](" + assetURL + ")"
+					description += "\n\n" + attachmentMarkdown(header.Filename, assetURL, strings.HasPrefix(contentType, "image/"))
 				}
 			}
 		}
@@ -329,7 +327,7 @@ func run() error {
 		return fmt.Errorf("listen: %w", err)
 	}
 	slog.Info("starting server", "addr", "http://"+ln.Addr().String(), "team_key", teamKey)
-	return http.Serve(ln, mux)
+	return http.Serve(ln, securityHeaders(mux))
 }
 
 // voteAuth adapts a workloadid.Verifier to the roadmap handler's

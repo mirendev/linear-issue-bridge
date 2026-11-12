@@ -14,7 +14,7 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/renderer/html"
+	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/util"
 
 	"miren.dev/linear-issue-bridge/internal/linearapi"
@@ -39,7 +39,7 @@ func newMarkdown(teamKey string) goldmark.Markdown {
 			),
 		),
 		goldmark.WithRendererOptions(
-			html.WithUnsafe(),
+			renderer.WithNodeRenderers(util.Prioritized(escapedHTMLRenderer{}, 100)),
 		),
 	)
 }
